@@ -1,6 +1,6 @@
 [project]
 name = "ai-bot-framework"
-version = "0.1.1"
+version = "0.2.0"
 description = "AI agent framework with tool system and memory management"
 authors = [
     { name = "Vladimir Sumarokov", email = "sumarokov.vp@gmail.com" }
@@ -11,6 +11,7 @@ dependencies = [
     "anthropic>=0.52.0",
     "psycopg>=3.3.2",
     "redis>=7.1.1",
+    "yoyo-migrations==9.0.0",
 ]
 
 [project.optional-dependencies]
@@ -96,7 +97,9 @@ layers = [
     "ai_framework.application",
     "ai_framework.providers",
     "ai_framework.tools",
+    "ai_framework.session",
     "ai_framework.memory",
+    "ai_framework.migrations",
     "ai_framework.protocols",
     "ai_framework.entities",
 ]

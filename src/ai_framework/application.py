@@ -5,6 +5,7 @@ from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolResult
 from ai_framework.protocols.i_ai_provider import IAIProvider
 from ai_framework.protocols.i_memory_store import IMemoryStore
+from ai_framework.protocols.i_session_store import ISessionStore
 from ai_framework.protocols.i_tool_registry import IToolRegistry
 
 
@@ -16,14 +17,26 @@ class AIApplication:
         tool_registry: IToolRegistry | None = None,
         system_prompt: str | None = None,
         max_tool_rounds: int = 10,
+        session_store: ISessionStore | None = None,
+        database_url: str | None = None,
     ) -> None:
         self._provider = provider
         self._memory = memory
         self._tool_registry = tool_registry
         self._system_prompt = system_prompt
         self._max_tool_rounds = max_tool_rounds
+        self._session_store = session_store
+
+        if database_url:
+            from ai_framework.migrations import apply_migrations
+
+            apply_migrations(database_url)
 
     def process_message(self, thread_id: str, user_message: str) -> AIResponse:
+        if self._session_store:
+            self._session_store.get_or_create(thread_id)
+            self._session_store.touch(thread_id)
+
         user_msg = Message(role="user", content=user_message)
         self._memory.add_message(thread_id, user_msg)
 
