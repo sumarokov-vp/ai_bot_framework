@@ -95,12 +95,21 @@ class ClaudeSdkProvider:
         )
 
     def _build_prompt(self, messages: list[Message]) -> str:
-        last_user_message = ""
-        for msg in reversed(messages):
-            if msg.role == "user":
-                last_user_message = msg.content
-                break
-        return last_user_message
+        # claude-code-sdk query() accepts a single prompt string, not a messages list.
+        # When resuming a session, the SDK retains prior conversation context,
+        # so only the latest user message is needed.
+        # On a fresh session, we concatenate the full history to avoid context loss.
+        if self._last_session_id:
+            for msg in reversed(messages):
+                if msg.role == "user":
+                    return msg.content
+            return ""
+
+        parts: list[str] = []
+        for msg in messages:
+            prefix = "User" if msg.role == "user" else "Assistant"
+            parts.append(f"[{prefix}]: {msg.content}")
+        return "\n\n".join(parts)
 
     def _normalize_arguments(
         self, raw_input: dict[str, Any]

@@ -1,7 +1,7 @@
 title: "Ревью ClaudeSdkProvider._build_prompt() — потеря истории"
-status: open
+status: done
 created_at: 13.02.2026
-completed_at: null
+completed_at: 13.02.2026
 
 todoist:
   task_id: "6g29F93frj7h2hJr"
@@ -14,4 +14,11 @@ recommendation: |
   Проверить, намеренно ли это (ограничение Claude Code SDK — session resumption
   может хранить историю на стороне SDK). Если нет — передавать полную историю.
 
-solution: null
+solution: |
+  claude-code-sdk query() принимает prompt: str, а не список сообщений.
+  При возобновлении сессии (resume=session_id) SDK хранит историю на своей стороне,
+  поэтому достаточно последнего сообщения. Но при первом вызове (session_id=None)
+  вся предыдущая история терялась — отправлялось только последнее user-сообщение.
+  Исправлено: при отсутствии session_id _build_prompt() конкатенирует все сообщения
+  в формате [User]/[Assistant] в единый prompt. При наличии session_id — только
+  последнее user-сообщение (SDK уже знает контекст).
