@@ -9,3 +9,4 @@ dist/
 .agent-branch
 .todoist.yaml
 .env
+.claude/devops.yaml
