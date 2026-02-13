@@ -11,7 +11,6 @@ allowed-tools: Bash(.claude/skills/publish/scripts/*)
 ### Перед публикацией
 
 1. Убедись, что в `.env` заполнена переменная `PYPI_TOKEN`
-2. Проверь, что версия в `pyproject.toml` обновлена (не совпадает с уже опубликованной)
 
 ### Публикация
 
@@ -20,10 +19,15 @@ allowed-tools: Bash(.claude/skills/publish/scripts/*)
 ```
 
 Скрипт автоматически:
+- Инкрементирует patch-версию
 - Запускает линтеры и тесты
 - Собирает пакет
 - Публикует на PyPI
 
-### Bump версии
+### Bump версии (без публикации)
 
-Если нужно поднять версию перед публикацией, обнови поле `version` в `pyproject.toml`.
+```bash
+.claude/skills/publish/scripts/publish.sh bump patch  # 0.1.0 → 0.1.1 (по умолчанию)
+.claude/skills/publish/scripts/publish.sh bump minor  # 0.1.1 → 0.2.0
+.claude/skills/publish/scripts/publish.sh bump major  # 0.2.0 → 1.0.0
+```
