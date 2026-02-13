@@ -1,7 +1,7 @@
 title: "Fix: передавать tool_call_id в ToolRegistry.execute()"
-status: open
+status: done
 created_at: 13.02.2026
-completed_at: null
+completed_at: 13.02.2026
 
 todoist:
   task_id: "6g29F8qC7FCHVXwJ"
@@ -16,4 +16,8 @@ recommendation: |
   Обновить протокол IToolRegistry.execute() соответственно.
   Обновить вызов в application.py._execute_tool_calls().
 
-solution: null
+solution: |
+  Добавлен параметр tool_call_id в IToolRegistry.execute() и ToolRegistry.execute().
+  ToolRegistry теперь передаёт tool_call_id в создаваемый ToolResult.
+  В application.py._execute_tool_calls() передаётся tool_call.id в execute()
+  и используется ToolResult напрямую, без пересоздания.

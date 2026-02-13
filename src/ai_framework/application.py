@@ -72,12 +72,8 @@ class AIApplication:
 
         results: list[ToolResult] = []
         for tool_call in response.tool_calls:
-            result = self._tool_registry.execute(tool_call.name, tool_call.arguments)
-            results.append(
-                ToolResult(
-                    tool_call_id=tool_call.id,
-                    content=result.content,
-                    is_error=result.is_error,
-                )
+            result = self._tool_registry.execute(
+                tool_call.name, tool_call.arguments, tool_call.id
             )
+            results.append(result)
         return results
