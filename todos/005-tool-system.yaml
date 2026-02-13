@@ -1,0 +1,19 @@
+title: Tool system
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pc72WGPqgwhJ"
+
+description: |
+  Регистрация инструментов (декоратор/класс), маршрутизация вызовов,
+  Pydantic-валидация параметров.
+
+recommendation: |
+  Декоратор @tool для регистрации. ToolRegistry для хранения и маршрутизации.
+
+solution: |
+  Создан ToolRegistry (register/get_definitions/execute) и декоратор @tool
+  с автоматической генерацией JSON Schema из type hints через Pydantic TypeAdapter.
+  Файлы: tools/tool_registry.py, tools/decorators.py, tools/__init__.py.

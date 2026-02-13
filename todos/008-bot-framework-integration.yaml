@@ -1,0 +1,24 @@
+title: Интеграция с bot-framework
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pcXh8Gc9G9HJ"
+
+description: |
+  Адаптер для использования AI-агента как шага во Flow.
+  AIStep — шаг, делегирующий обработку AI-агенту.
+
+recommendation: |
+  Создать AIStep(Step) который принимает AIApplication и делегирует process_message.
+
+solution: |
+  Создан Protocol-based адаптер AIStep в src/ai_framework/integrations/bot_framework.py.
+  AIStep реализует интерфейс IStep(Protocol) из bot-framework через duck typing:
+  - name: str, execute(user, state) -> bool
+  - Принимает AIApplication и IMessageSender в конструкторе
+  - Извлекает текст из state.source_message.text (настраиваемо через get_user_message)
+  - Вызывает ai_application.process_message(thread_id, text)
+  - Отправляет ответ через message_sender.send()
+  bot-framework не добавлен как зависимость — используются Protocol-интерфейсы.

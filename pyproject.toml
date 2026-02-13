@@ -1,0 +1,97 @@
+[project]
+name = "ai-framework"
+version = "0.1.0"
+description = "AI agent framework with tool system and memory management"
+authors = [
+    { name = "Vladimir Sumarokov", email = "sumarokov.vp@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.11.0",
+    "anthropic>=0.52.0",
+    "psycopg>=3.3.2",
+    "redis>=7.1.1",
+]
+
+[project.optional-dependencies]
+claude-sdk = [
+    "claude-code-sdk>=0.0.25",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.9",
+    "mypy>=1.18.2",
+    "pyright>=1.1.406",
+    "pytest>=9.0.0",
+    "ruff>=0.13.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_framework"]
+
+[tool.pyright]
+venv = ".venv"
+venvPath = "."
+reportUnusedVariable = false
+reportUnusedImport = false
+reportMissingImports = false
+
+[tool.ruff]
+lint.select = [
+  "F",   # flake8
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "B",   # flake8-bugbear
+  "N",   # PEP 8 naming conventions
+  "C",   # McCabe complexity
+  "T",   # Print found todos
+  "UP",  # upgrade syntax
+  "ANN", # type annotations
+  "S",   # security issues
+  "DTZ", # datetime timezone issues
+]
+
+lint.ignore = [
+  "ANN204", # Missing type annotation for special methods
+  "E501",   # line too long
+  "C901",   # function too complex
+  "ANN401", # Any type
+  "W293",   # blank line contains whitespace
+  "W291",   # trailing whitespace
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test*" = [
+  "S101",   # disable security issues for tests
+  "ANN201", # Missing return type
+]
+
+[tool.mypy]
+exclude = [".venv/"]
+ignore_missing_imports = true
+strict = false
+disallow_subclassing_any = true
+warn_unused_ignores = false
+warn_redundant_casts = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+show_error_codes = true
+
+[tool.importlinter]
+root_packages = ["ai_framework"]
+
+[[tool.importlinter.contracts]]
+name = "ai_framework layers"
+type = "layers"
+layers = [
+    "ai_framework.providers",
+    "ai_framework.tools",
+    "ai_framework.memory",
+    "ai_framework.protocols",
+    "ai_framework.entities",
+]

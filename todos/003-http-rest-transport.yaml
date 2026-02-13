@@ -1,0 +1,20 @@
+title: HTTP REST транспорт (Anthropic API key)
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pXpgwMmGh7mJ"
+
+description: |
+  Реализация AIProvider через Anthropic Messages API.
+  Аутентификация по API key. Поддержка tool_use. Claude по умолчанию.
+
+recommendation: |
+  Использовать anthropic SDK. Реализовать IAIProvider protocol.
+
+solution: |
+  Создан AnthropicProvider в src/ai_framework/providers/anthropic_provider.py.
+  Реализует IAIProvider protocol через синхронный anthropic.Anthropic клиент.
+  Конвертация Message/ToolDefinition в формат Anthropic API и обратно.
+  Поддержка system prompt, tool_use, tool_result. Реэкспорт через __init__.py.

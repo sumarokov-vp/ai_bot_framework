@@ -1,0 +1,21 @@
+title: Memory / контекст разговора
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pc9Rr4829r6r"
+
+description: |
+  Хранение истории сообщений. Реализации: PostgreSQL, Redis.
+  Поддержка thread_id.
+
+recommendation: |
+  Protocol IMemoryStore. Реализации: PostgresMemory, RedisMemory.
+
+solution: |
+  Созданы три реализации IMemoryStore:
+  - InMemoryStore — dict[str, list[Message]] в памяти
+  - PostgresMemoryStore — psycopg v3, таблица ai_messages с jsonb для tool_calls/tool_results
+  - RedisMemoryStore — Redis List, сериализация через model_dump_json/model_validate_json
+  Добавлены зависимости psycopg и redis. Все проверки ruff/mypy пройдены.

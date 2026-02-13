@@ -1,0 +1,19 @@
+title: AIProvider Protocol и базовые сущности
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pXh9MF3grVmr"
+
+description: |
+  Определить протоколы: IAIProvider, IAISession, IToolRegistry.
+  Entities: Message, ToolCall, ToolResult, AIResponse.
+
+recommendation: |
+  Использовать typing.Protocol для интерфейсов.
+  Pydantic для entities.
+
+solution: |
+  Созданы entities (Message, ToolCall, ToolResult, AIResponse, TokenUsage) и protocols
+  (IAIProvider, IMemoryStore, IToolRegistry, ToolDefinition). Все проверки ruff и mypy пройдены.

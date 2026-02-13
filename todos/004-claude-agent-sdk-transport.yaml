@@ -1,0 +1,24 @@
+title: Claude Agent SDK транспорт (OAuth)
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pXwJGXvpcVgr"
+
+description: |
+  Реализация AIProvider через claude_code_sdk.
+  OAuth авторизация Claude Code на сервере. Session resume.
+
+recommendation: |
+  Использовать claude_code_sdk. Реализовать IAIProvider protocol.
+
+solution: |
+  Создан ClaudeSdkProvider в src/ai_framework/providers/claude_sdk_provider.py.
+  Использует claude_code_sdk.query() для взаимодействия с Claude через Agent SDK (OAuth).
+  Реализует IAIProvider protocol: send_message() с адаптацией async query() через asyncio.run().
+  Поддержка session resume через last_session_id.
+  Извлечение текста, tool_calls, usage из AssistantMessage/ResultMessage.
+  claude-code-sdk добавлен как optional dependency в pyproject.toml.
+  Реэкспорт из providers/__init__.py.
+  ruff check и mypy проходят без ошибок.

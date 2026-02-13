@@ -1,0 +1,24 @@
+title: Инициализация проекта ai-framework
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pXRGhWVHJP2J"
+
+description: |
+  Создать репозиторий, структуру папок, pyproject.toml, настроить uv, ruff, mypy, lint-imports.
+
+recommendation: |
+  Создать отдельный пакет ai-framework по аналогии с bot-framework.
+  Структура: src/ai_framework/, tests/, pyproject.toml.
+
+solution: |
+  Создан проект /home/sumarokov/projects/ai-framework/ со структурой:
+  - pyproject.toml (pydantic, anthropic, dev: ruff, mypy, pyright, pytest, import-linter)
+  - src/ai_framework/ с подпакетами: entities, protocols, providers, tools, memory
+  - tests/
+  - .gitignore, py.typed
+  - Настройки ruff, mypy, pyright, import-linter скопированы из bot-framework
+  - uv sync выполнен, зависимости установлены
+  - git init выполнен, ветка main

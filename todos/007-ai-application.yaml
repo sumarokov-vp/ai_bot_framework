@@ -1,0 +1,20 @@
+title: AIApplication (точка входа)
+status: done
+created_at: 13.02.2026
+completed_at: 13.02.2026
+
+todoist:
+  task_id: "6g28pcMP2VgcJfVJ"
+
+description: |
+  Аналог BotApplication из bot-framework. Инициализация провайдера,
+  инструментов, памяти. Метод process_message().
+
+recommendation: |
+  Класс AIApplication, собирающий provider + tools + memory.
+  Метод process_message(thread_id, message) -> AIResponse.
+
+solution: |
+  Создан src/ai_framework/application.py с классом AIApplication.
+  Объединяет IAIProvider, IMemoryStore, IToolRegistry. Метод process_message()
+  реализует tool loop (до max_tool_rounds итераций). Реэкспорт в __init__.py.
