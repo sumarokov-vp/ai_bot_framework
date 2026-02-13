@@ -1,0 +1,17 @@
+title: "Ревью ClaudeSdkProvider._build_prompt() — потеря истории"
+status: open
+created_at: 13.02.2026
+completed_at: null
+
+todoist:
+  task_id: "6g29F93frj7h2hJr"
+
+description: |
+  ClaudeSdkProvider._build_prompt() берёт только последнее сообщение
+  пользователя, игнорируя всю историю переписки. Контекст теряется.
+
+recommendation: |
+  Проверить, намеренно ли это (ограничение Claude Code SDK — session resumption
+  может хранить историю на стороне SDK). Если нет — передавать полную историю.
+
+solution: null

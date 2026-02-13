@@ -1,0 +1,19 @@
+title: "Fix: передавать tool_call_id в ToolRegistry.execute()"
+status: open
+created_at: 13.02.2026
+completed_at: null
+
+todoist:
+  task_id: "6g29F8qC7FCHVXwJ"
+
+description: |
+  В ToolRegistry.execute() создаётся ToolResult с пустым tool_call_id="".
+  Идентификатор вызова теряется, хотя он нужен для корреляции результата
+  с вызовом в API (Anthropic требует tool_use_id в tool_result).
+
+recommendation: |
+  Добавить параметр tool_call_id в метод execute() и передавать его в ToolResult.
+  Обновить протокол IToolRegistry.execute() соответственно.
+  Обновить вызов в application.py._execute_tool_calls().
+
+solution: null

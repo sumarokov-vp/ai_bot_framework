@@ -1,0 +1,19 @@
+title: Добавить application и integrations в import-linter
+status: open
+created_at: 13.02.2026
+completed_at: null
+
+todoist:
+  task_id: "6g29F8xGPPm22wMr"
+
+description: |
+  application.py и integrations/ не включены в конфигурацию import-linter.
+  Нарушения слоёв в этих модулях не отслеживаются.
+
+recommendation: |
+  Добавить слои в pyproject.toml:
+  - ai_framework.integrations (top)
+  - ai_framework.application (между providers и protocols)
+  Или создать отдельный контракт для integrations.
+
+solution: null
