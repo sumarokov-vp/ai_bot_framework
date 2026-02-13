@@ -89,6 +89,8 @@ root_packages = ["ai_framework"]
 name = "ai_framework layers"
 type = "layers"
 layers = [
+    "ai_framework.integrations",
+    "ai_framework.application",
     "ai_framework.providers",
     "ai_framework.tools",
     "ai_framework.memory",

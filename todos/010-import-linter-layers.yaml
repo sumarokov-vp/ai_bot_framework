@@ -1,7 +1,7 @@
 title: Добавить application и integrations в import-linter
-status: open
+status: done
 created_at: 13.02.2026
-completed_at: null
+completed_at: 13.02.2026
 
 todoist:
   task_id: "6g29F8xGPPm22wMr"
@@ -16,4 +16,7 @@ recommendation: |
   - ai_framework.application (между providers и protocols)
   Или создать отдельный контракт для integrations.
 
-solution: null
+solution: |
+  Добавлены слои integrations и application в import-linter конфигурацию pyproject.toml.
+  Порядок слоёв: integrations > application > providers > tools > memory > protocols > entities.
+  lint-imports, ruff, mypy — все проверки пройдены.
