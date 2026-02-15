@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolResult
@@ -7,6 +9,9 @@ from ai_framework.protocols.i_ai_provider import IAIProvider
 from ai_framework.protocols.i_memory_store import IMemoryStore
 from ai_framework.protocols.i_session_store import ISessionStore
 from ai_framework.protocols.i_tool_registry import IToolRegistry
+
+
+logger = logging.getLogger(__name__)
 
 
 class AIApplication:
@@ -85,8 +90,14 @@ class AIApplication:
 
         results: list[ToolResult] = []
         for tool_call in response.tool_calls:
+            logger.info(
+                "Tool call: %s(%s)", tool_call.name, tool_call.arguments
+            )
             result = self._tool_registry.execute(
                 tool_call.name, tool_call.arguments, tool_call.id
+            )
+            logger.info(
+                "Tool result: %s -> %s", tool_call.name, result.content
             )
             results.append(result)
         return results
