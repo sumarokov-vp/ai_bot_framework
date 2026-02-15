@@ -1,6 +1,6 @@
 [project]
 name = "ai-bot-framework"
-version = "0.2.3"
+version = "0.2.4"
 description = "AI agent framework with tool system and memory management"
 authors = [
     { name = "Vladimir Sumarokov", email = "sumarokov.vp@gmail.com" }
