@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 
+from typing import Any
+
 from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolResult
@@ -37,7 +39,12 @@ class AIApplication:
 
             apply_migrations(database_url)
 
-    def process_message(self, thread_id: str, user_message: str) -> AIResponse:
+    def process_message(
+        self,
+        thread_id: str,
+        user_message: str,
+        tool_context: dict[str, Any] | None = None,
+    ) -> AIResponse:
         if self._session_store:
             self._session_store.get_or_create(thread_id)
             self._session_store.touch(thread_id)
@@ -65,7 +72,7 @@ class AIApplication:
             )
             self._memory.add_message(thread_id, assistant_msg)
 
-            tool_results = self._execute_tool_calls(response)
+            tool_results = self._execute_tool_calls(response, tool_context)
             tool_msg = Message(
                 role="user",
                 content="",
@@ -84,18 +91,33 @@ class AIApplication:
         self._memory.add_message(thread_id, assistant_msg)
         return response
 
-    def _execute_tool_calls(self, response: AIResponse) -> list[ToolResult]:
+    def _execute_tool_calls(
+        self,
+        response: AIResponse,
+        tool_context: dict[str, Any] | None = None,
+    ) -> list[ToolResult]:
         if not self._tool_registry:
             raise ValueError("Tool registry is required to execute tool calls")
 
         results: list[ToolResult] = []
         for tool_call in response.tool_calls:
+            arguments = tool_call.arguments
+            if tool_context:
+                arguments = {**arguments, **tool_context}
             logger.info(
-                "Tool call: %s(%s)", tool_call.name, tool_call.arguments
+                "Tool call: %s(%s)", tool_call.name, arguments
             )
-            result = self._tool_registry.execute(
-                tool_call.name, tool_call.arguments, tool_call.id
-            )
+            try:
+                result = self._tool_registry.execute(
+                    tool_call.name, arguments, tool_call.id
+                )
+            except Exception:
+                logger.exception("Tool %s raised an exception", tool_call.name)
+                result = ToolResult(
+                    tool_call_id=tool_call.id,
+                    content=f"Tool {tool_call.name} failed with an internal error.",
+                    is_error=True,
+                )
             logger.info(
                 "Tool result: %s -> %s", tool_call.name, result.content
             )
