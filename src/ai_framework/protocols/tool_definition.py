@@ -13,3 +13,4 @@ class ToolDefinition(BaseModel):
     description: str
     input_schema: dict[str, Any]
     handler: Callable[..., Any] | None = None
+    context_params: list[str] = []

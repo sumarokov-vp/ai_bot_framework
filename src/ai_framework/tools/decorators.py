@@ -46,14 +46,27 @@ def _build_input_schema(func: Callable[..., Any]) -> dict[str, Any]:
     return schema
 
 
-def tool(name: str, description: str) -> Callable[[Callable[..., Any]], ToolDefinition]:
+def tool(
+    name: str,
+    description: str,
+    context_params: list[str] | None = None,
+) -> Callable[[Callable[..., Any]], ToolDefinition]:
     def decorator(func: Callable[..., Any]) -> ToolDefinition:
         input_schema = _build_input_schema(func)
+        excluded = context_params or []
+        if excluded:
+            for param_name in excluded:
+                input_schema.get("properties", {}).pop(param_name, None)
+                if "required" in input_schema:
+                    input_schema["required"] = [
+                        r for r in input_schema["required"] if r != param_name
+                    ]
         return ToolDefinition(
             name=name,
             description=description,
             input_schema=input_schema,
             handler=func,
+            context_params=excluded,
         )
 
     return decorator
