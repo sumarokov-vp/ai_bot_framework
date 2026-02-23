@@ -14,10 +14,22 @@ class ToolRegistry:
     def get_definitions(self) -> list[ToolDefinition]:
         return list(self._tools.values())
 
-    def execute(self, name: str, arguments: dict[str, object], tool_call_id: str) -> ToolResult:
+    def execute(
+        self,
+        name: str,
+        arguments: dict[str, object],
+        tool_call_id: str,
+        tool_context: dict[str, object] | None = None,
+    ) -> ToolResult:
         tool = self._tools[name]
         if tool.handler is None:
             raise ValueError(f"Tool '{name}' has no handler")
+        if tool_context and tool.context_params:
+            filtered = {
+                k: v for k, v in tool_context.items()
+                if k in tool.context_params
+            }
+            arguments = {**arguments, **filtered}
         result = tool.handler(**arguments)
         return ToolResult(
             tool_call_id=tool_call_id,

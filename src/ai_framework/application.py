@@ -102,14 +102,13 @@ class AIApplication:
         results: list[ToolResult] = []
         for tool_call in response.tool_calls:
             arguments = tool_call.arguments
-            if tool_context:
-                arguments = {**arguments, **tool_context}
             logger.info(
                 "Tool call: %s(%s)", tool_call.name, arguments
             )
             try:
                 result = self._tool_registry.execute(
-                    tool_call.name, arguments, tool_call.id
+                    tool_call.name, arguments, tool_call.id,
+                    tool_context=tool_context,
                 )
             except Exception:
                 logger.exception("Tool %s raised an exception", tool_call.name)

@@ -11,4 +11,10 @@ class IToolRegistry(Protocol):
 
     def get_definitions(self) -> list[ToolDefinition]: ...
 
-    def execute(self, name: str, arguments: dict[str, object], tool_call_id: str) -> ToolResult: ...
+    def execute(
+        self,
+        name: str,
+        arguments: dict[str, object],
+        tool_call_id: str,
+        tool_context: dict[str, object] | None = None,
+    ) -> ToolResult: ...
