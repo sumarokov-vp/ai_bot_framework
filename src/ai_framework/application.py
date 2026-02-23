@@ -39,6 +39,9 @@ class AIApplication:
 
             apply_migrations(database_url)
 
+    def clear_context(self, thread_id: str) -> None:
+        self._memory.clear(thread_id)
+
     def process_message(
         self,
         thread_id: str,
