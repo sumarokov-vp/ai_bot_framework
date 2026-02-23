@@ -16,13 +16,20 @@ _PYTHON_TYPE_TO_JSON: dict[type, str] = {
 }
 
 
-def _build_input_schema(func: Callable[..., Any]) -> dict[str, Any]:
+def _build_input_schema(
+    func: Callable[..., Any],
+    exclude: list[str] | None = None,
+) -> dict[str, Any]:
     hints = get_type_hints(func)
     sig = inspect.signature(func)
+    excluded = set(exclude or [])
     properties: dict[str, Any] = {}
     required: list[str] = []
 
     for param_name, param in sig.parameters.items():
+        if param_name in excluded:
+            continue
+
         param_type = hints.get(param_name, str)
 
         if param_type in _PYTHON_TYPE_TO_JSON:
@@ -52,15 +59,8 @@ def tool(
     context_params: list[str] | None = None,
 ) -> Callable[[Callable[..., Any]], ToolDefinition]:
     def decorator(func: Callable[..., Any]) -> ToolDefinition:
-        input_schema = _build_input_schema(func)
         excluded = context_params or []
-        if excluded:
-            for param_name in excluded:
-                input_schema.get("properties", {}).pop(param_name, None)
-                if "required" in input_schema:
-                    input_schema["required"] = [
-                        r for r in input_schema["required"] if r != param_name
-                    ]
+        input_schema = _build_input_schema(func, exclude=excluded)
         return ToolDefinition(
             name=name,
             description=description,
