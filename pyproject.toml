@@ -1,6 +1,6 @@
 [project]
 name = "ai-bot-framework"
-version = "0.3.0"
+version = "0.3.3"
 description = "AI agent framework with tool system and memory management"
 authors = [
     { name = "Vladimir Sumarokov", email = "sumarokov.vp@gmail.com" }
@@ -93,7 +93,6 @@ root_packages = ["ai_framework"]
 name = "ai_framework layers"
 type = "layers"
 layers = [
-    "ai_framework.integrations",
     "ai_framework.application",
     "ai_framework.providers",
     "ai_framework.tools",
