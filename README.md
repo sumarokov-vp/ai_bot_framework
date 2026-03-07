@@ -44,21 +44,14 @@ app = AIApplication(
 )
 ```
 
-Call `open()` before use and `close()` when done, or use as a context manager:
+Use as a context manager — `__enter__` runs database migrations and opens connections, `__exit__` closes them:
 
 ```python
-# Context manager (preferred)
-with AIApplication(...) as app:
-    response = app.process_message("thread-1", "Hello")
-
-# Manual lifecycle
 app = AIApplication(...)
-app.open()     # runs migrations, opens DB connections
-# ... use app ...
-app.close()    # closes DB connections
-```
 
-`open()` runs database migrations automatically and creates connections for memory and session storage.
+with app:
+    response = app.process_message("thread-1", "Hello")
+```
 
 ## Tools
 
