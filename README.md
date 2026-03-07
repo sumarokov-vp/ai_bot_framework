@@ -11,18 +11,27 @@ pip install ai-bot-framework
 ## Quick Start
 
 ```python
-from ai_framework import AIApplication
-from ai_framework.tools import tool
+from pydantic import BaseModel, Field
 
-@tool(name="get_weather", description="Get current weather for a city")
-def get_weather(city: str) -> str:
-    return f"Weather in {city}: 22C, sunny"
+from ai_framework import AIApplication, BaseTool, ToolContext
+
+
+class GetWeatherTool(BaseTool):
+    name = "get_weather"
+    description = "Get current weather for a city"
+
+    class Input(BaseModel):
+        city: str = Field(description="City name")
+
+    def execute(self, input: Input, context: ToolContext) -> str:
+        return f"Weather in {input.city}: 22C, sunny"
+
 
 with AIApplication(
     api_key="sk-ant-...",
     system_prompt="You are a helpful assistant.",
     database_url="postgresql://user:pass@localhost/mydb",
-    tools=[get_weather],
+    tools=[GetWeatherTool()],
 ) as app:
     response = app.process_message("user-123", "What's the weather in Moscow?")
     print(response.content)
@@ -35,11 +44,11 @@ Central orchestrator. Sends messages to Claude, executes tool calls in a loop, a
 ```python
 app = AIApplication(
     api_key="sk-ant-...",               # Anthropic API key
-    system_prompt="You are a helper.",  # system prompt
-    database_url="postgresql://...",    # PostgreSQL connection
-    tools=[my_tool],                    # list of tools (empty list if none)
-    model="claude-sonnet-4-20250514",   # model string from Anthropic docs (optional)
-    provider=Provider.ANTHROPIC,        # provider enum (optional)
+    system_prompt="You are a helper.",   # system prompt
+    database_url="postgresql://...",     # PostgreSQL connection
+    tools=[MyTool()],                   # list of BaseTool instances
+    model="claude-sonnet-4-20250514",   # model (optional)
+    provider=Provider.ANTHROPIC,        # provider (optional)
     max_tool_rounds=10,                 # max tool call rounds per message (optional)
 )
 ```
@@ -47,45 +56,89 @@ app = AIApplication(
 Use as a context manager — `__enter__` runs database migrations and opens connections, `__exit__` closes them:
 
 ```python
-app = AIApplication(...)
-
 with app:
     response = app.process_message("thread-1", "Hello")
 ```
 
 ## Tools
 
-Define tools with the `@tool` decorator. Input schema is generated automatically from type hints.
+Define tools by subclassing `BaseTool`. Input schema is generated automatically from the Pydantic `Input` model.
 
 ```python
-from ai_framework.tools import tool
+from pydantic import BaseModel, Field
 
-@tool(name="search", description="Search the knowledge base")
-def search(query: str, limit: int = 5) -> str:
-    results = do_search(query, limit)
-    return "\n".join(results)
+from ai_framework import BaseTool, ToolContext
+
+
+class SearchTool(BaseTool):
+    name = "search"
+    description = "Search the knowledge base"
+
+    class Input(BaseModel):
+        query: str = Field(description="Search query")
+        limit: int = Field(default=5, description="Max results to return")
+
+    def __init__(self, search_service: SearchService):
+        self.search_service = search_service
+
+    def execute(self, input: Input, context: ToolContext) -> str:
+        results = self.search_service.search(input.query, input.limit)
+        return "\n".join(results)
 ```
 
-### Context Parameters
+### Context
 
-Inject runtime context (e.g. user ID) into tools without exposing it to the LLM:
+Runtime context (e.g. user ID, chat ID) is available via `ToolContext` — it is not exposed to the LLM:
 
 ```python
-@tool(
-    name="get_orders",
-    description="Get user's recent orders",
-    context_params=["user_id"],
-)
-def get_orders(user_id: int, limit: int = 10) -> str:
-    return str(fetch_orders(user_id, limit))
+class GetOrdersTool(BaseTool):
+    name = "get_orders"
+    description = "Get user's recent orders"
 
-# user_id is excluded from the schema sent to Claude
-# and injected at call time via tool_context
+    class Input(BaseModel):
+        limit: int = Field(default=10, description="Max orders to return")
+
+    def execute(self, input: Input, context: ToolContext) -> str:
+        return str(fetch_orders(context.user_id, input.limit))
+
+
+# Pass context when processing a message
 response = app.process_message(
     "user-123",
     "Show my orders",
     tool_context={"user_id": 42},
 )
+```
+
+### Dependency Injection
+
+Tools receive dependencies through `__init__`, no factory functions needed:
+
+```python
+class SendLeadTool(BaseTool):
+    name = "send_lead"
+    description = "Send a loan application lead to CRM"
+
+    class Input(BaseModel):
+        full_name: str = Field(description="Customer full name")
+        phone: str = Field(description="Phone number")
+        amount: int = Field(description="Loan amount")
+
+    def __init__(self, lead_sender: ILeadSender):
+        self.lead_sender = lead_sender
+
+    def execute(self, input: Input, context: ToolContext) -> dict:
+        return self.lead_sender.send(
+            context.chat_id, input.full_name, input.phone, input.amount,
+        )
+
+
+# Wire up dependencies
+tools = [
+    SendLeadTool(lead_sender),
+    GetProductsTool(products_provider),
+]
+app = AIApplication(..., tools=tools)
 ```
 
 ## Multi-round Tool Calling
@@ -147,12 +200,12 @@ Layered architecture enforced by [import-linter](https://github.com/seddonym/imp
 ```
 application    →  AIApplication (orchestrator)
 providers      →  AnthropicProvider, ClaudeSdkProvider
-tools          →  ToolRegistry, @tool decorator
+tools          →  ToolRegistry
 session        →  Session store (PostgreSQL)
 memory         →  Memory store (PostgreSQL)
 migrations     →  Database migrations (yoyo)
-protocols      →  IAIProvider, IMemoryStore, ISessionStore
-entities       →  Message, ToolCall, ToolResult, AIResponse, TokenUsage, Provider
+protocols      →  IAIProvider, IMemoryStore, ISessionStore, BaseTool
+entities       →  Message, ToolCall, ToolResult, AIResponse, ToolContext, TokenUsage, Provider
 ```
 
 Each layer can import from layers below it, but not above.
