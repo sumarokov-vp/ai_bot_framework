@@ -100,6 +100,7 @@ layers = [
     "ai_framework.session",
     "ai_framework.memory",
     "ai_framework.migrations",
+    "ai_framework.tool_loop",
     "ai_framework.protocols",
     "ai_framework.entities",
 ]
