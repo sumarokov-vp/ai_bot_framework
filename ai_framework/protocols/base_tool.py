@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from ai_framework.entities.tool_context import ToolContext
 
 
-class BaseTool(ABC):
+class BaseTool[InputT: BaseModel](ABC):
     name: ClassVar[str]
     description: ClassVar[str]
 
@@ -21,4 +21,4 @@ class BaseTool(ABC):
         return schema
 
     @abstractmethod
-    def execute(self, input: Any, context: ToolContext) -> Any: ...
+    def execute(self, input: InputT, context: ToolContext) -> Any: ...
