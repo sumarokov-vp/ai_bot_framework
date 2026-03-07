@@ -5,9 +5,9 @@ from typing import Any
 from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.provider import Provider
 from ai_framework.infrastructure_factory import InfrastructureContext, open_infrastructure
-from ai_framework.protocols.tool_definition import ToolDefinition
 from ai_framework.providers.provider_factory import create_provider
 from ai_framework.tool_loop import ToolLoop
+from ai_framework.protocols.base_tool import BaseTool
 from ai_framework.tools.tool_registry_factory import create_tool_registry
 
 
@@ -17,7 +17,7 @@ class AIApplication:
         api_key: str,
         system_prompt: str,
         database_url: str,
-        tools: list[ToolDefinition],
+        tools: list[BaseTool],
         model: str = "claude-sonnet-4-20250514",
         provider: Provider = Provider.ANTHROPIC,
         max_tool_rounds: int = 10,

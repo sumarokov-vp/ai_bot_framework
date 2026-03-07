@@ -48,7 +48,7 @@ class ToolLoop:
         user_msg = Message(role="user", content=user_message)
         self._memory.add_message(thread_id, user_msg)
 
-        tools = self._tool_registry.get_definitions() or None
+        tools = self._tool_registry.get_tools() or None
 
         for _ in range(self._max_rounds):
             messages = self._memory.get_messages(thread_id)

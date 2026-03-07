@@ -7,15 +7,17 @@ from ai_framework.entities import (
     ToolCall,
     ToolResult,
 )
-from ai_framework.protocols import ToolDefinition
+from ai_framework.entities.tool_context import ToolContext
+from ai_framework.protocols.base_tool import BaseTool
 
 __all__ = [
     "AIApplication",
     "AIResponse",
+    "BaseTool",
     "Message",
     "Provider",
     "TokenUsage",
     "ToolCall",
-    "ToolDefinition",
+    "ToolContext",
     "ToolResult",
 ]
