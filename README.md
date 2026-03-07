@@ -122,26 +122,22 @@ The `Provider` enum selects the AI backend:
 from ai_framework import AIApplication, Provider
 
 # Anthropic API (default)
-app = AIApplication(api_key="...", provider=Provider.ANTHROPIC, ...)
-
-# Claude Code SDK (requires: pip install ai-bot-framework[claude-sdk])
-app = AIApplication(api_key="...", provider=Provider.CLAUDE_SDK, ...)
-```
-
-## Bot Framework Integration
-
-`AIStep` integrates with [bot-framework](https://github.com/sumarokov-vp/bot-framework) for Telegram bots:
-
-```python
-from ai_framework import AIApplication, AIStep
-
-with AIApplication(
+app = AIApplication(
     api_key="...",
-    system_prompt="...",
+    system_prompt="You are a helpful assistant.",
     database_url="postgresql://...",
     tools=[],
-) as app:
-    step = AIStep(ai_application=app, message_sender=my_sender)
+    provider=Provider.ANTHROPIC,
+)
+
+# Claude Code SDK (requires: pip install ai-bot-framework[claude-sdk])
+app = AIApplication(
+    api_key="...",
+    system_prompt="You are a helpful assistant.",
+    database_url="postgresql://...",
+    tools=[],
+    provider=Provider.CLAUDE_SDK,
+)
 ```
 
 ## Architecture
@@ -149,7 +145,6 @@ with AIApplication(
 Layered architecture enforced by [import-linter](https://github.com/seddonym/import-linter):
 
 ```
-integrations   →  AIStep (bot-framework bridge)
 application    →  AIApplication (orchestrator)
 providers      →  AnthropicProvider, ClaudeSdkProvider
 tools          →  ToolRegistry, @tool decorator
