@@ -57,8 +57,8 @@ VERSION=$(get_version)
 echo -e "${YELLOW}Publishing version ${VERSION}...${NC}"
 
 echo -e "${YELLOW}Running linters...${NC}"
-uv run ruff check src/
-uv run mypy src/
+uv run ruff check
+uv run mypy .
 
 echo -e "${YELLOW}Running tests...${NC}"
 uv run pytest || [ $? -eq 5 ]
