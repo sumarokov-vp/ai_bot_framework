@@ -17,6 +17,17 @@ uv run mypy src/           # Type check
 uv run pyright src/        # Type check (pyright)
 ```
 
+## Publishing
+
+Package is published via Git tags (not PyPI). The `/publish` skill bumps the version, creates a tag `vX.Y.Z`, and pushes to GitHub.
+
+Consumers install via Git tag in `pyproject.toml`:
+
+```toml
+[tool.uv.sources]
+ai-bot-framework = { git = "https://github.com/sumarokov-vp/ai_bot_framework.git", tag = "v0.4.0" }
+```
+
 ## Architecture
 
 Layered architecture enforced by import-linter (top imports from bottom, not vice versa):
