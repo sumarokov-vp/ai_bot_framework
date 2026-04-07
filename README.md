@@ -86,6 +86,34 @@ class SearchTool(BaseTool):
         return "\n".join(results)
 ```
 
+### Suppress Response
+
+Tools can signal that the bot should not send the final text response to the user. This is useful for tools that handle the response themselves (e.g. sending a file, forwarding a message, or triggering an external action).
+
+Set `suppress_response = True` on the tool class:
+
+```python
+class SendFileTool(BaseTool):
+    name = "send_file"
+    description = "Send a file to the user"
+    suppress_response = True
+
+    class Input(BaseModel):
+        file_path: str = Field(description="Path to the file")
+
+    def execute(self, input: Input, context: ToolContext) -> str:
+        send_file(context.chat_id, input.file_path)
+        return "File sent"
+```
+
+If any tool in the conversation loop has `suppress_response = True`, the final `AIResponse.suppress_response` will be `True`. The caller can then skip sending the text message:
+
+```python
+response = app.process_message("user-123", "Send me the report")
+if not response.suppress_response:
+    send_text(response.content)
+```
+
 ### Context
 
 Runtime context (e.g. user ID, chat ID) is available via `ToolContext` — it is not exposed to the LLM:
