@@ -11,3 +11,4 @@ class AIResponse(BaseModel):
     tool_calls: list[ToolCall] = []
     stop_reason: str | None = None
     usage: TokenUsage | None = None
+    suppress_response: bool = False

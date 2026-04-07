@@ -11,6 +11,7 @@ from ai_framework.entities.tool_context import ToolContext
 class BaseTool(ABC):
     name: ClassVar[str]
     description: ClassVar[str]
+    suppress_response: ClassVar[bool] = False
 
     Input: ClassVar[type[BaseModel]]
 

@@ -36,6 +36,20 @@ class ToolLoop:
     def update_system_prompt(self, text: str) -> None:
         self._system_prompt = text
 
+    def _build_system_prompt(self, tools: list[Any] | None) -> str:
+        if not tools:
+            return self._system_prompt
+
+        tool_lines = []
+        for tool in tools:
+            tool_lines.append(f"- **{tool.name}**: {tool.description}")
+
+        tools_block = (
+            "\n\n## Available tools\n\n"
+            + "\n".join(tool_lines)
+        )
+        return self._system_prompt + tools_block
+
     def run(
         self,
         thread_id: str,
@@ -49,12 +63,14 @@ class ToolLoop:
         self._memory.add_message(thread_id, user_msg)
 
         tools = self._tool_registry.get_tools() or None
+        system_prompt = self._build_system_prompt(tools)
+        suppress_response = False
 
         for _ in range(self._max_rounds):
             messages = self._memory.get_messages(thread_id)
             response = self._provider.send_message(
                 messages=messages,
-                system=self._system_prompt,
+                system=system_prompt,
                 tools=tools,
             )
 
@@ -69,6 +85,8 @@ class ToolLoop:
             self._memory.add_message(thread_id, assistant_msg)
 
             tool_results = self._execute_tool_calls(response, tool_context)
+            if self._has_suppress_response_tools(response):
+                suppress_response = True
             tool_msg = Message(
                 role="user",
                 content="",
@@ -85,7 +103,15 @@ class ToolLoop:
             content=response.content or "",
         )
         self._memory.add_message(thread_id, assistant_msg)
+        response.suppress_response = suppress_response
         return response
+
+    def _has_suppress_response_tools(self, response: AIResponse) -> bool:
+        tools = {t.name: t for t in self._tool_registry.get_tools()}
+        return any(
+            getattr(tools.get(tc.name), "suppress_response", False)
+            for tc in response.tool_calls
+        )
 
     def _execute_tool_calls(
         self,
