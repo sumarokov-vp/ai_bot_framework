@@ -57,11 +57,11 @@ VERSION=$(get_version)
 echo -e "${YELLOW}Publishing version ${VERSION}...${NC}"
 
 echo -e "${YELLOW}Running linters...${NC}"
-uv run ruff check
-uv run mypy .
+uv run python -m ruff check
+uv run python -m mypy .
 
 echo -e "${YELLOW}Running tests...${NC}"
-uv run pytest || [ $? -eq 5 ]
+uv run python -m pytest || [ $? -eq 5 ]
 
 echo -e "${YELLOW}Cleaning dist/...${NC}"
 rm -rf dist/
