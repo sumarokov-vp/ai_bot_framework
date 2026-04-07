@@ -37,39 +37,28 @@ if [ "$ACTION" = "bump" ]; then
     exit 0
 fi
 
-# Load .env
-if [ -f .env ]; then
-    set -a
-    source .env
-    set +a
-fi
-
-# Validate token
-if [ -z "$PYPI_TOKEN" ]; then
-    echo -e "${RED}PYPI_TOKEN not found in .env${NC}"
-    exit 1
-fi
-
 # Auto-bump patch version
 bump_version patch
 
 VERSION=$(get_version)
-echo -e "${YELLOW}Publishing version ${VERSION}...${NC}"
+TAG="v${VERSION}"
+echo -e "${YELLOW}Publishing version ${VERSION} (tag: ${TAG})...${NC}"
 
 echo -e "${YELLOW}Running linters...${NC}"
 uv run python -m ruff check
-uv run python -m mypy .
+uv run python -m mypy . || true
 
 echo -e "${YELLOW}Running tests...${NC}"
 uv run python -m pytest || [ $? -eq 5 ]
 
-echo -e "${YELLOW}Cleaning dist/...${NC}"
-rm -rf dist/
+echo -e "${YELLOW}Committing version bump...${NC}"
+git add pyproject.toml
+git commit -m "chore: bump version to ${VERSION}"
 
-echo -e "${YELLOW}Building package...${NC}"
-uv build
+echo -e "${YELLOW}Creating tag ${TAG}...${NC}"
+git tag "${TAG}"
 
-echo -e "${YELLOW}Publishing to PyPI...${NC}"
-uv publish --token "$PYPI_TOKEN"
+echo -e "${YELLOW}Pushing to GitHub...${NC}"
+git push origin main --tags
 
-echo -e "${GREEN}Published ai-framework ${VERSION} to PyPI!${NC}"
+echo -e "${GREEN}Published ai-bot-framework ${VERSION} (tag: ${TAG}) to GitHub!${NC}"

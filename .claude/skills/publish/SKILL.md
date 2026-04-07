@@ -1,16 +1,12 @@
 ---
 name: publish
-description: Публикация пакета на PyPI через uv.
+description: Публикация пакета через Git tag + push на GitHub.
 allowed-tools: Bash(.claude/skills/publish/scripts/*)
 ---
 
-Публикация пакета на PyPI. $ARGUMENTS
+Публикация пакета через Git tag на GitHub. $ARGUMENTS
 
 ## Инструкции
-
-### Перед публикацией
-
-1. Убедись, что в `.env` заполнена переменная `PYPI_TOKEN`
 
 ### Публикация
 
@@ -21,8 +17,9 @@ allowed-tools: Bash(.claude/skills/publish/scripts/*)
 Скрипт автоматически:
 - Инкрементирует patch-версию
 - Запускает линтеры и тесты
-- Собирает пакет
-- Публикует на PyPI
+- Коммитит bump версии
+- Создаёт git tag (v0.X.Y)
+- Пушит коммит и тег на GitHub
 
 ### Bump версии (без публикации)
 
@@ -30,4 +27,13 @@ allowed-tools: Bash(.claude/skills/publish/scripts/*)
 .claude/skills/publish/scripts/publish.sh bump patch  # 0.1.0 → 0.1.1 (по умолчанию)
 .claude/skills/publish/scripts/publish.sh bump minor  # 0.1.1 → 0.2.0
 .claude/skills/publish/scripts/publish.sh bump major  # 0.2.0 → 1.0.0
+```
+
+### Потребители
+
+Потребители подключают пакет через Git tag в pyproject.toml:
+
+```toml
+[tool.uv.sources]
+ai-bot-framework = { git = "https://github.com/sumarokov-vp/ai_bot_framework.git", tag = "v0.4.0" }
 ```
