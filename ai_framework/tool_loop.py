@@ -136,8 +136,13 @@ class ToolLoop:
                     content=f"Tool {tool_call.name} failed with an internal error.",
                     is_error=True,
                 )
-            logger.info(
-                "Tool result: %s -> %s", tool_call.name, result.content
-            )
+            if result.is_error:
+                logger.error(
+                    "Tool error: %s -> %s", tool_call.name, result.content
+                )
+            else:
+                logger.info(
+                    "Tool result: %s -> %s", tool_call.name, result.content
+                )
             results.append(result)
         return results
