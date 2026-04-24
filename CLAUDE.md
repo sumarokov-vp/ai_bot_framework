@@ -28,6 +28,16 @@ Consumers install via Git tag in `pyproject.toml`:
 ai-bot-framework = { git = "https://github.com/sumarokov-vp/ai_bot_framework.git", tag = "v0.4.0" }
 ```
 
+## Documentation
+
+Detailed docs are in `docs/`:
+
+- [Installation & Quick Start](docs/installation.md) — pip install, minimal working example
+- [AIApplication](docs/application.md) — orchestrator config, multi-round tool calling, system prompt, conversation management
+- [Tools](docs/tools.md) — BaseTool, suppress_response, ToolContext, dependency injection
+- [Providers](docs/providers.md) — Anthropic API vs Claude Code SDK
+- [Architecture](docs/architecture.md) — layered imports, requirements
+
 ## Architecture
 
 Layered architecture enforced by import-linter (top imports from bottom, not vice versa):
@@ -39,11 +49,3 @@ memory             → InMemoryStore, PostgresMemoryStore, RedisMemoryStore
 protocols          → IAIProvider, IMemoryStore, IToolRegistry (Protocol classes)
 entities           → Message, ToolCall, ToolResult, AIResponse, TokenUsage (Pydantic models)
 ```
-
-**AIApplication** (`application.py`) — central orchestrator. Accepts provider, memory store, and tool registry via constructor. Runs multi-round tool calling loop (send → execute tools → send results → repeat until done or max rounds).
-
-**Tool system** — `@tool` decorator auto-generates JSON schema from function type hints. `ToolRegistry` stores and executes tools by name.
-
-**Providers** convert between internal `Message`/`AIResponse` format and external API formats. `ClaudeSdkProvider` supports async claude-code-sdk with session resumption.
-
-**Integration** — `AIStep` bridges with bot-framework (Telegram bot flow step).
