@@ -21,10 +21,12 @@ class AIApplication:
         model: str = "claude-sonnet-4-20250514",
         provider: Provider = Provider.ANTHROPIC,
         max_tool_rounds: int = 10,
+        history_turns_limit: int | None = None,
     ) -> None:
         self._provider = create_provider(provider, api_key, model)
         self._system_prompt = system_prompt
         self._max_tool_rounds = max_tool_rounds
+        self._history_turns_limit = history_turns_limit
         self._database_url = database_url
         self._tool_registry = create_tool_registry(tools)
         self._infrastructure: InfrastructureContext | None = None
@@ -39,6 +41,7 @@ class AIApplication:
             tool_registry=self._tool_registry,
             system_prompt=self._system_prompt,
             max_rounds=self._max_tool_rounds,
+            history_turns_limit=self._history_turns_limit,
         )
         return self
 

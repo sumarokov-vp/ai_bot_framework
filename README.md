@@ -195,6 +195,17 @@ app.update_system_prompt("You now speak French only.")
 app.clear_context("user-123")
 ```
 
+## History Window
+
+By default the full thread history is sent to the provider on every call, which grows unbounded. Set `history_turns_limit` to cap the history at the last N full turns (a turn = one user message plus any tool-call rounds and the final assistant reply). Trimming happens on the fly before sending; full history is preserved in storage.
+
+```python
+app = AIApplication(
+    ...,
+    history_turns_limit=20,  # send only the last 20 turns to the model
+)
+```
+
 ## Providers
 
 The `Provider` enum selects the AI backend:

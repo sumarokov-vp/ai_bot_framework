@@ -25,13 +25,19 @@ class ToolLoop:
         tool_registry: IToolRegistry,
         system_prompt: str,
         max_rounds: int = 10,
+        history_turns_limit: int | None = None,
     ) -> None:
+        if history_turns_limit is not None and history_turns_limit < 1:
+            raise ValueError(
+                "history_turns_limit must be a positive integer or None"
+            )
         self._provider = provider
         self._memory = memory
         self._sessions = sessions
         self._tool_registry = tool_registry
         self._system_prompt = system_prompt
         self._max_rounds = max_rounds
+        self._history_turns_limit = history_turns_limit
 
     def update_system_prompt(self, text: str) -> None:
         self._system_prompt = text
@@ -67,7 +73,7 @@ class ToolLoop:
         suppress_response = False
 
         for _ in range(self._max_rounds):
-            messages = self._memory.get_messages(thread_id)
+            messages = self._trim_history(self._memory.get_messages(thread_id))
             response = self._provider.send_message(
                 messages=messages,
                 system=system_prompt,
@@ -105,6 +111,26 @@ class ToolLoop:
         self._memory.add_message(thread_id, assistant_msg)
         response.suppress_response = suppress_response
         return response
+
+    def _trim_history(self, messages: list[Message]) -> list[Message]:
+        """Keep only the last N full turns.
+
+        A turn starts with a user message that has no tool_results (i.e. a fresh
+        user input, not a tool-result continuation). Trimming by turn boundaries
+        preserves tool_use/tool_result pairing required by the provider API.
+        """
+        if self._history_turns_limit is None:
+            return messages
+
+        turn_starts = [
+            i for i, m in enumerate(messages)
+            if m.role == "user" and not m.tool_results
+        ]
+        if len(turn_starts) <= self._history_turns_limit:
+            return messages
+
+        cutoff = turn_starts[-self._history_turns_limit]
+        return messages[cutoff:]
 
     def _has_suppress_response_tools(self, response: AIResponse) -> bool:
         tools = {t.name: t for t in self._tool_registry.get_tools()}
