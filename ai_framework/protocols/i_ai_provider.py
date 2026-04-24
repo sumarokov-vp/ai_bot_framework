@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.message import Message
@@ -13,4 +13,5 @@ class IAIProvider(Protocol):
         messages: list[Message],
         system: str | None = None,
         tools: list[BaseTool] | None = None,
+        tool_context: dict[str, Any] | None = None,
     ) -> AIResponse: ...

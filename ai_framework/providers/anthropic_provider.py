@@ -23,7 +23,9 @@ class AnthropicProvider:
         messages: list[Message],
         system: str | None = None,
         tools: list[BaseTool] | None = None,
+        tool_context: dict[str, Any] | None = None,
     ) -> AIResponse:
+        del tool_context
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": 8192,

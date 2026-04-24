@@ -1,6 +1,6 @@
 [project]
 name = "ai-bot-framework"
-version = "0.5.0"
+version = "0.6.0"
 description = "AI agent framework with tool system and memory management"
 authors = [
     { name = "Vladimir Sumarokov", email = "sumarokov.vp@gmail.com" }
@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 claude-sdk = [
-    "claude-code-sdk>=0.0.25",
+    "claude-agent-sdk>=0.1.32",
 ]
 
 [dependency-groups]

@@ -78,6 +78,7 @@ class ToolLoop:
                 messages=messages,
                 system=system_prompt,
                 tools=tools,
+                tool_context=tool_context,
             )
 
             if not response.tool_calls:
