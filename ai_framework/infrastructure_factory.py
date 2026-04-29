@@ -19,11 +19,7 @@ class InfrastructureContext:
 
 def open_infrastructure(database_url: str) -> InfrastructureContext:
     apply_migrations(database_url)
-
-    memory = PostgresMemoryStore(database_url)
-    memory.open()
-
-    sessions = PostgresSessionStore(database_url)
-    sessions.open()
-
-    return InfrastructureContext(memory=memory, sessions=sessions)
+    return InfrastructureContext(
+        memory=PostgresMemoryStore(database_url),
+        sessions=PostgresSessionStore(database_url),
+    )
