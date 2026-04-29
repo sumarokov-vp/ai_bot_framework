@@ -46,8 +46,7 @@ class AIApplication:
         return self
 
     def __exit__(self, *args: object) -> None:
-        if self._infrastructure:
-            self._infrastructure.close()
+        pass
 
     @property
     def _loop(self) -> ToolLoop:

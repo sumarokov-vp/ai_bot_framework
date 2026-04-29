@@ -12,10 +12,6 @@ class InfrastructureContext:
         self.memory = memory
         self.sessions = sessions
 
-    def close(self) -> None:
-        self.sessions.close()
-        self.memory.close()
-
 
 def open_infrastructure(database_url: str) -> InfrastructureContext:
     apply_migrations(database_url)

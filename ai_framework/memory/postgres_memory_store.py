@@ -11,12 +11,6 @@ class PostgresMemoryStore:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def open(self) -> None:
-        pass
-
-    def close(self) -> None:
-        pass
-
     def get_messages(self, thread_id: str) -> list[Message]:
         with psycopg.connect(self._database_url) as conn:
             cursor = conn.execute(

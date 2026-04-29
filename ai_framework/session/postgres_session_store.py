@@ -8,12 +8,6 @@ class PostgresSessionStore:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def open(self) -> None:
-        pass
-
-    def close(self) -> None:
-        pass
-
     def get_or_create(self, thread_id: str) -> Session:
         with psycopg.connect(self._database_url) as conn:
             with conn.cursor(row_factory=class_row(Session)) as cur:
