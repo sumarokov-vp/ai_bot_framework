@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ai_framework.entities.ai_response import AIResponse
+from ai_framework.entities.message import Message
 from ai_framework.entities.provider import Provider
 from ai_framework.infrastructure_factory import InfrastructureContext, open_infrastructure
 from ai_framework.providers.provider_factory import create_provider
@@ -63,6 +64,14 @@ class AIApplication:
         if not self._infrastructure:
             raise RuntimeError("Use 'with app:' context manager before using AIApplication")
         self._infrastructure.memory.clear(thread_id)
+
+    def inject_note(self, thread_id: str, note: str) -> None:
+        if not self._infrastructure:
+            raise RuntimeError("Use 'with app:' context manager before using AIApplication")
+        self._infrastructure.memory.add_message(
+            thread_id,
+            Message(role="user", content=f"[SYSTEM NOTE] {note}"),
+        )
 
     def process_message(
         self,
