@@ -10,6 +10,7 @@ pytest.importorskip("claude_agent_sdk")
 
 from pydantic import BaseModel
 
+from ai_framework.entities.message import Message
 from ai_framework.entities.tool_context import ToolContext
 from ai_framework.protocols.base_tool import BaseTool
 from ai_framework.providers.claude_sdk_provider import ClaudeSdkProvider
@@ -121,3 +122,44 @@ def test_wrap_tool_does_not_set_suppress_flag_for_regular_tool():
         return provider._suppress_response_flag_var.get()
 
     assert asyncio.run(_runner()) is False
+
+
+def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
+    provider = ClaudeSdkProvider()
+    provider._last_session_id = "session-1"
+    messages = [
+        Message(role="user", content="привет"),
+        Message(role="assistant", content="здравствуйте"),
+        Message(role="user", content="[SYSTEM NOTE] бот отправил карточку устройства"),
+        Message(role="user", content="а что с ним?"),
+    ]
+
+    prompt = provider._build_prompt(messages)
+
+    assert prompt == (
+        "[SYSTEM NOTE] бот отправил карточку устройства\n\nа что с ним?"
+    )
+
+
+def test_build_prompt_on_resume_keeps_single_user_message():
+    provider = ClaudeSdkProvider()
+    provider._last_session_id = "session-1"
+    messages = [
+        Message(role="user", content="привет"),
+        Message(role="assistant", content="здравствуйте"),
+        Message(role="user", content="а что с ним?"),
+    ]
+
+    assert provider._build_prompt(messages) == "а что с ним?"
+
+
+def test_build_prompt_without_session_keeps_full_history():
+    provider = ClaudeSdkProvider()
+    messages = [
+        Message(role="user", content="привет"),
+        Message(role="assistant", content="здравствуйте"),
+    ]
+
+    assert provider._build_prompt(messages) == (
+        "[User]: привет\n\n[Assistant]: здравствуйте"
+    )

@@ -4,7 +4,7 @@ requires-python = ">=3.13"
 
 [[package]]
 name = "ai-bot-framework"
-version = "0.6.0"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -21,6 +21,7 @@ claude-sdk = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "claude-agent-sdk" },
     { name = "import-linter" },
     { name = "mypy" },
     { name = "pyright" },
@@ -41,6 +42,7 @@ provides-extras = ["claude-sdk"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "claude-agent-sdk", specifier = ">=0.1.32" },
     { name = "import-linter", specifier = ">=2.9" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "pyright", specifier = ">=1.1.406" },

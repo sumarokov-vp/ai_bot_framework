@@ -178,10 +178,13 @@ class ClaudeSdkProvider:
 
     def _build_prompt(self, messages: list[Message]) -> str:
         if self._last_session_id:
+            tail: list[str] = []
             for msg in reversed(messages):
+                if msg.role == "assistant":
+                    break
                 if msg.role == "user":
-                    return msg.content
-            return ""
+                    tail.append(msg.content)
+            return "\n\n".join(reversed(tail))
 
         parts: list[str] = []
         for msg in messages:
