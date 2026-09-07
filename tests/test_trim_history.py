@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolCall, ToolResult
 from ai_framework.tool_loop import ToolLoop
@@ -144,3 +145,28 @@ def test_zero_limit_raises_value_error():
 def test_trim_empty_messages_returns_empty():
     loop = _make_loop(3)
     assert loop._trim_history([]) == []
+
+
+class _RecordingProvider:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def send_message(self, **kwargs: Any) -> Any:
+        self.calls.append(kwargs)
+        return AIResponse(content="ответ", tool_calls=[], stop_reason="end_turn")
+
+
+def test_thread_id_reaches_the_provider():
+    """Провайдер с сессией на стороне модели обязан знать, чей разговор продолжает."""
+    provider = _RecordingProvider()
+    loop = ToolLoop(
+        provider=provider,
+        memory=_StubMemory(),
+        sessions=_StubSessions(),
+        tool_registry=_StubRegistry(),
+        system_prompt="sys",
+    )
+
+    loop.run(thread_id="chat-a", user_message="привет")
+
+    assert provider.calls[0]["thread_id"] == "chat-a"
