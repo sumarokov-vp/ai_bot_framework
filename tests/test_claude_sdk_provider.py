@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import AsyncIterator, Callable
 from typing import Any, ClassVar
 
 import pytest
@@ -13,7 +14,10 @@ from pydantic import BaseModel
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool_context import ToolContext
 from ai_framework.protocols.base_tool import BaseTool
-from ai_framework.providers.claude_sdk_provider import ClaudeSdkProvider
+from ai_framework.providers.claude_sdk_provider import (
+    ClaudeSdkProvider,
+    _thread_key,
+)
 
 
 class _EchoInput(BaseModel):
@@ -126,7 +130,6 @@ def test_wrap_tool_does_not_set_suppress_flag_for_regular_tool():
 
 def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
     messages = [
         Message(role="user", content="привет"),
         Message(role="assistant", content="здравствуйте"),
@@ -134,7 +137,7 @@ def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
         Message(role="user", content="а что с ним?"),
     ]
 
-    prompt = provider._build_prompt(messages)
+    prompt = provider._build_prompt(messages, resumed=True)
 
     assert prompt == (
         "[SYSTEM NOTE] бот отправил карточку устройства\n\nа что с ним?"
@@ -143,14 +146,13 @@ def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
 
 def test_build_prompt_on_resume_keeps_single_user_message():
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
     messages = [
         Message(role="user", content="привет"),
         Message(role="assistant", content="здравствуйте"),
         Message(role="user", content="а что с ним?"),
     ]
 
-    assert provider._build_prompt(messages) == "а что с ним?"
+    assert provider._build_prompt(messages, resumed=True) == "а что с ним?"
 
 
 def test_build_prompt_without_session_keeps_full_history():
@@ -163,3 +165,100 @@ def test_build_prompt_without_session_keeps_full_history():
     assert provider._build_prompt(messages) == (
         "[User]: привет\n\n[Assistant]: здравствуйте"
     )
+
+
+def test_session_is_kept_per_thread():
+    provider = ClaudeSdkProvider()
+
+    provider._session_ids[_thread_key("chat-a")] = "session-a"
+
+    assert provider.session_id_of("chat-a") == "session-a"
+    assert provider.session_id_of("chat-b") is None
+
+
+def test_answer_to_one_thread_does_not_resume_another():
+    """Тот самый прод-случай: два чата подряд, второй не должен попасть в сессию первого."""
+    provider = ClaudeSdkProvider()
+
+    provider._session_ids[_thread_key("chat-a")] = "session-a"
+    provider._session_ids[_thread_key("chat-b")] = "session-b"
+
+    assert provider.session_id_of("chat-a") == "session-a"
+    assert provider.session_id_of("chat-b") == "session-b"
+
+
+def test_thread_omitted_keeps_single_session():
+    provider = ClaudeSdkProvider()
+
+    provider._session_ids[_thread_key(None)] = "session-default"
+
+    assert provider.last_session_id == "session-default"
+    assert provider.session_id_of() == "session-default"
+    assert provider.session_id_of("") == "session-default"
+    assert provider.session_id_of("chat-a") is None
+
+
+def _result_message(session_id: str) -> Any:
+    from claude_agent_sdk import ResultMessage
+
+    return ResultMessage(
+        subtype="success",
+        duration_ms=1,
+        duration_api_ms=1,
+        is_error=False,
+        num_turns=1,
+        session_id=session_id,
+    )
+
+
+def _capturing_query(
+    seen: list[str | None], session_ids: list[str]
+) -> Callable[..., AsyncIterator[Any]]:
+    """Подменяет `query`: запоминает, с каким `resume` позвали, и отдаёт свою сессию."""
+    handed = iter(session_ids)
+
+    async def _fake(prompt: str, options: Any) -> AsyncIterator[Any]:  # noqa: ANN401, ARG001
+        seen.append(options.resume)
+        yield _result_message(next(handed))
+
+    return _fake
+
+
+def test_resume_follows_the_thread_not_the_last_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Прод-случай 07.09.2026: ответ одному чату уезжал в сессию другого."""
+    provider = ClaudeSdkProvider()
+    seen: list[str | None] = []
+    monkeypatch.setattr(
+        "ai_framework.providers.claude_sdk_provider.query",
+        _capturing_query(seen, ["session-a", "session-b", "session-a2"]),
+    )
+
+    provider.send_message([Message(role="user", content="первый")], thread_id="chat-a")
+    provider.send_message([Message(role="user", content="второй")], thread_id="chat-b")
+    provider.send_message(
+        [Message(role="user", content="снова первый")], thread_id="chat-a"
+    )
+
+    # Третий вызов — снова чат A, и продолжает он СВОЮ сессию, а не последнюю по времени.
+    assert seen == [None, None, "session-a"]
+    assert provider.session_id_of("chat-a") == "session-a2"
+    assert provider.session_id_of("chat-b") == "session-b"
+
+
+def test_resume_without_thread_keeps_previous_behaviour(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = ClaudeSdkProvider()
+    seen: list[str | None] = []
+    monkeypatch.setattr(
+        "ai_framework.providers.claude_sdk_provider.query",
+        _capturing_query(seen, ["session-1", "session-1"]),
+    )
+
+    provider.send_message([Message(role="user", content="раз")])
+    provider.send_message([Message(role="user", content="два")])
+
+    assert seen == [None, "session-1"]
+    assert provider.last_session_id == "session-1"

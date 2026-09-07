@@ -30,7 +30,27 @@ logger = logging.getLogger(__name__)
 type PermissionMode = Literal["default", "acceptEdits", "plan", "bypassPermissions"]
 
 
+
+# Тред, под которым живёт сессия у того, кто зовёт провайдера без `thread_id`. Пустая
+# строка, а не `None`: ключ словаря обязан быть строкой, а «безымянный разговор» — это
+# один разговор, а не отсутствие разговора.
+_DEFAULT_THREAD = ""
+
+
+def _thread_key(thread_id: str | None) -> str:
+    return thread_id if thread_id else _DEFAULT_THREAD
+
+
 class ClaudeSdkProvider:
+    """Провайдер поверх Claude Code CLI. Сессия CLI — СВОЯ НА КАЖДЫЙ ТРЕД.
+
+    Провайдер у приложения один на процесс, а разговоров в нём столько, сколько чатов.
+    Пока `resume` брался из одного поля на весь провайдер, он указывал на сессию того,
+    кто ответил последним: реплика одного собеседника продолжала разговор другого, и
+    чужая переписка приезжала в контекст модели. Поэтому ключ здесь — тред, а не порядок
+    обращений.
+    """
+
     def __init__(
         self,
         model: str = "claude-sonnet-4-20250514",
@@ -42,7 +62,7 @@ class ClaudeSdkProvider:
         self._cwd = cwd
         self._permission_mode: PermissionMode = permission_mode
         self._mcp_server_name = mcp_server_name
-        self._last_session_id: str | None = None
+        self._session_ids: dict[str, str] = {}
         self._mcp_server: McpSdkServerConfig | None = None
         self._registered_tool_names: set[str] = set()
         self._context_var: contextvars.ContextVar[dict[str, Any] | None] = (
@@ -56,7 +76,12 @@ class ClaudeSdkProvider:
 
     @property
     def last_session_id(self) -> str | None:
-        return self._last_session_id
+        """Сессия треда по умолчанию — того, кого зовут без `thread_id`."""
+        return self._session_ids.get(_DEFAULT_THREAD)
+
+    def session_id_of(self, thread_id: str | None = None) -> str | None:
+        """Сессия CLI, в которую уйдёт `resume` для этого треда."""
+        return self._session_ids.get(_thread_key(thread_id))
 
     def send_message(
         self,
@@ -64,9 +89,12 @@ class ClaudeSdkProvider:
         system: str | None = None,
         tools: list[BaseTool] | None = None,
         tool_context: dict[str, Any] | None = None,
+        thread_id: str | None = None,
     ) -> AIResponse:
         return asyncio.run(
-            self._send_message_async(messages, system, tools, tool_context)
+            self._send_message_async(
+                messages, system, tools, tool_context, thread_id
+            )
         )
 
     async def _send_message_async(
@@ -75,7 +103,10 @@ class ClaudeSdkProvider:
         system: str | None = None,
         tools: list[BaseTool] | None = None,
         tool_context: dict[str, Any] | None = None,
+        thread_id: str | None = None,
     ) -> AIResponse:
+        thread = _thread_key(thread_id)
+        resume = self._session_ids.get(thread)
         if tools:
             tool_names = {t.name for t in tools}
             if self._mcp_server is None or tool_names != self._registered_tool_names:
@@ -87,7 +118,7 @@ class ClaudeSdkProvider:
         options = ClaudeAgentOptions(
             model=self._model,
             permission_mode=self._permission_mode,
-            resume=self._last_session_id,
+            resume=resume,
         )
 
         if self._cwd:
@@ -102,7 +133,7 @@ class ClaudeSdkProvider:
                 f"mcp__{self._mcp_server_name}__{t.name}" for t in tools
             ]
 
-        prompt = self._build_prompt(messages)
+        prompt = self._build_prompt(messages, resumed=resume is not None)
 
         text_parts: list[str] = []
         usage: TokenUsage | None = None
@@ -123,7 +154,7 @@ class ClaudeSdkProvider:
                             block.content,
                         )
             elif isinstance(msg, ResultMessage):
-                self._last_session_id = msg.session_id
+                self._session_ids[thread] = msg.session_id
                 usage = self._extract_usage(msg)
 
         return AIResponse(
@@ -176,8 +207,10 @@ class ClaudeSdkProvider:
 
         return _wrapper
 
-    def _build_prompt(self, messages: list[Message]) -> str:
-        if self._last_session_id:
+    def _build_prompt(
+        self, messages: list[Message], resumed: bool = False
+    ) -> str:
+        if resumed:
             tail: list[str] = []
             for msg in reversed(messages):
                 if msg.role == "assistant":

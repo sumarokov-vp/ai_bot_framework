@@ -79,6 +79,7 @@ class ToolLoop:
                 system=system_prompt,
                 tools=tools,
                 tool_context=tool_context,
+                thread_id=thread_id,
             )
 
             if not response.tool_calls:

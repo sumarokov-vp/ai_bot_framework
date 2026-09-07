@@ -14,4 +14,8 @@ class IAIProvider(Protocol):
         system: str | None = None,
         tools: list[BaseTool] | None = None,
         tool_context: dict[str, Any] | None = None,
+        # Тред разговора. Провайдеру без состояния он не нужен, но провайдер, который
+        # держит сессию на стороне модели, обязан знать, ЧЕЙ разговор продолжает:
+        # одна сессия на провайдер склеивает разных собеседников (ClaudeSdkProvider).
+        thread_id: str | None = None,
     ) -> AIResponse: ...
