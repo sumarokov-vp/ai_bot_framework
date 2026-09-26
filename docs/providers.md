@@ -46,3 +46,12 @@ Both providers pass [attachments](application.md#attachments) to the model as co
 - **ClaudeSdkProvider** — without attachments the prompt is a string, as before. With attachments the prompt switches to the SDK streaming input: one user message whose content is the attachment blocks plus the text. With a live SDK session (`resume`) only the new turn's attachments are sent — the session already holds the earlier ones. Without a session (a fresh process after restart) the whole history is rebuilt, and attachments of earlier turns are read from the attachment store.
 
 The SDK session transcript (`~/.claude/projects/.../<session>.jsonl` on the bot host) keeps a base64 copy of the attachments sent in that session; it is the Claude Code transcript, not the application database, and `resume` needs it.
+
+## Images in tool results
+
+A tool may return an image (`Attachment`) or a list of text and images — contract in [Tools](tools.md#картинка-в-результате-инструмента). Both providers pass it to the model:
+
+- **AnthropicProvider** — the `tool_result` block gets list content: a `text` block (if the tool returned text) and an `image` block with a `base64` source. The image bytes go to the attachment store, the history keeps only the key; on the next rounds and turns they are read back from the store.
+- **ClaudeSdkProvider** — the in-process MCP tool returns `content` with `text` and `image` items (`{"type": "image", "data": <base64>, "mimeType": ...}`). The image stays in the SDK session transcript; the attachment store is not used.
+
+Images only, up to 5 MB each; PDF must be rasterized to PNG by the tool.

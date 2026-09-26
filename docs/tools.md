@@ -123,3 +123,42 @@ tools = [
 ]
 app = AIApplication(..., tools=tools)
 ```
+
+## Картинка в результате инструмента
+
+A tool can return an image instead of (or next to) text — a scanned page, a chart, a photo. The model sees it the same way as an image the user attached.
+
+```python
+from ai_framework import Attachment, BaseTool, ToolContext
+
+
+class FetchScanTool(BaseTool):
+    name = "fetch_scan"
+    description = "Fetch the scanned page as an image"
+
+    class Input(BaseModel):
+        page: int = Field(description="Page number")
+
+    def execute(self, input: Input, context: ToolContext) -> list[str | Attachment]:
+        png = self.scans.page_png(input.page)
+        return [
+            f"Scan of page {input.page}:",
+            Attachment(media_type="image/png", filename="scan.png", data=png),
+        ]
+```
+
+Contract (`ToolOutput = str | Attachment | list[str | Attachment]` in `ai_framework.protocols.base_tool`):
+
+- `str` — plain text, as before. Any other object (dict, number) is still serialized to text.
+- `Attachment` — one image, no text.
+- `list[str | Attachment]` — text parts and images in order. A list that holds at least one `Attachment` may hold only `str` and `Attachment`; anything else raises `ValueError`. A list without attachments is treated as an ordinary object and serialized to text.
+- The attachment carries the bytes in `data`; `key` stays empty — the framework fills it.
+
+Only images are accepted: `image/png`, `image/jpeg`, `image/gif`, `image/webp`. **PDF is not supported in a tool result** (the Claude API has no `document` block inside `tool_result`, and MCP has no such content type) — an `Attachment` with `application/pdf` raises `ValueError`. Rasterize the pages to PNG yourself (e.g. `pdftoppm -png`, PyMuPDF) and return them as images.
+
+Limits: the Claude API accepts at most **5 MB per image** and rejects the request above that; large images are downscaled by the model anyway — around 1568 px on the long side is enough. Downscale or re-encode (JPEG) before returning.
+
+What happens next depends on the provider (see [Providers](providers.md#images-in-tool-results)):
+
+- **AnthropicProvider** — `ToolLoop` puts the image into the `attachment_store` and keeps only its key in the history, like user attachments. `AIApplication` needs an `attachment_store`, otherwise the tool round fails with `ValueError`.
+- **ClaudeSdkProvider** — the image goes to the SDK as MCP `image` content of the tool result and lives in the SDK session; nothing is written to the attachment store.
