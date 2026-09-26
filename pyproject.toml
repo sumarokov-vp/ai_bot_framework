@@ -98,6 +98,7 @@ layers = [
     "ai_framework.providers",
     "ai_framework.tools",
     "ai_framework.session",
+    "ai_framework.attachments",
     "ai_framework.memory",
     "ai_framework.migrations",
     "ai_framework.tool_loop",

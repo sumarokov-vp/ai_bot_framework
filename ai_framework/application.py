@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from ai_framework.attachments.cached_attachment_store import CachedAttachmentStore
 from ai_framework.entities.ai_response import AIResponse
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.provider import Provider
 from ai_framework.infrastructure_factory import InfrastructureContext, open_infrastructure
 from ai_framework.providers.provider_factory import create_provider
 from ai_framework.tool_loop import ToolLoop
 from ai_framework.protocols.base_tool import BaseTool
+from ai_framework.protocols.i_attachment_store import IAttachmentStore
 from ai_framework.tools.tool_registry_factory import create_tool_registry
 
 
@@ -23,6 +26,7 @@ class AIApplication:
         provider: Provider = Provider.ANTHROPIC,
         max_tool_rounds: int = 10,
         history_turns_limit: int | None = None,
+        attachment_store: IAttachmentStore | None = None,
     ) -> None:
         self._provider = create_provider(provider, api_key, model)
         self._system_prompt = system_prompt
@@ -32,6 +36,11 @@ class AIApplication:
         self._tool_registry = create_tool_registry(tools)
         self._infrastructure: InfrastructureContext | None = None
         self._tool_loop: ToolLoop | None = None
+        self._attachment_store: IAttachmentStore | None = (
+            CachedAttachmentStore(attachment_store)
+            if attachment_store is not None
+            else None
+        )
 
     def __enter__(self) -> AIApplication:
         self._infrastructure = open_infrastructure(self._database_url)
@@ -43,6 +52,7 @@ class AIApplication:
             system_prompt=self._system_prompt,
             max_rounds=self._max_tool_rounds,
             history_turns_limit=self._history_turns_limit,
+            attachment_store=self._attachment_store,
         )
         return self
 
@@ -78,5 +88,15 @@ class AIApplication:
         thread_id: str,
         user_message: str,
         tool_context: dict[str, Any] | None = None,
+        attachments: list[Attachment] | None = None,
     ) -> AIResponse:
-        return self._loop.run(thread_id, user_message, tool_context)
+        if attachments and self._attachment_store is None:
+            raise ValueError(
+                "Attachments require an attachment_store: pass it to AIApplication"
+            )
+        return self._loop.run(
+            thread_id,
+            user_message,
+            tool_context,
+            attachments=attachments,
+        )
