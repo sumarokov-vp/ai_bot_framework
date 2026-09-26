@@ -31,16 +31,31 @@ class Attachment(BaseModel):
     data: bytes | None = Field(default=None, exclude=True)
 
     def to_content_block(self) -> dict[str, Any]:
-        if self.data is None:
-            raise ValueError(
-                f"Attachment {self.key!r} has no data: hydrate it from the attachment store first"
-            )
         block_type = "document" if self.media_type == "application/pdf" else "image"
         return {
             "type": block_type,
             "source": {
                 "type": "base64",
                 "media_type": self.media_type,
-                "data": base64.standard_b64encode(self.data).decode("ascii"),
+                "data": self._base64_data(),
             },
         }
+
+    def to_mcp_content(self) -> dict[str, Any]:
+        if not self.media_type.startswith("image/"):
+            raise ValueError(
+                f"Attachment {self.filename or self.key!r} has media type {self.media_type}, "
+                "which is not supported in a tool result: only images are, rasterize it to PNG"
+            )
+        return {
+            "type": "image",
+            "data": self._base64_data(),
+            "mimeType": self.media_type,
+        }
+
+    def _base64_data(self) -> str:
+        if self.data is None:
+            raise ValueError(
+                f"Attachment {self.key!r} has no data: hydrate it from the attachment store first"
+            )
+        return base64.standard_b64encode(self.data).decode("ascii")
