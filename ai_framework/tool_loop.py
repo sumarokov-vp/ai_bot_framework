@@ -151,20 +151,42 @@ class ToolLoop:
         return stored
 
     def _hydrate_attachments(self, messages: list[Message]) -> list[Message]:
-        if not any(message.attachments for message in messages):
+        if not any(self._carries_attachments(message) for message in messages):
             return messages
         store = self._require_attachment_store()
-        hydrated: list[Message] = []
-        for message in messages:
-            if not message.attachments:
-                hydrated.append(message)
-                continue
-            attachments = [
+        return [self._hydrate_message(store, message) for message in messages]
+
+    def _carries_attachments(self, message: Message) -> bool:
+        return bool(message.attachments) or any(
+            result.attachments for result in message.tool_results or []
+        )
+
+    def _hydrate_message(self, store: IAttachmentStore, message: Message) -> Message:
+        if not self._carries_attachments(message):
+            return message
+        update: dict[str, Any] = {}
+        if message.attachments:
+            update["attachments"] = [
                 self._hydrate_attachment(store, attachment)
                 for attachment in message.attachments
             ]
-            hydrated.append(message.model_copy(update={"attachments": attachments}))
-        return hydrated
+        if message.tool_results:
+            update["tool_results"] = [
+                self._hydrate_tool_result(store, result)
+                for result in message.tool_results
+            ]
+        return message.model_copy(update=update)
+
+    def _hydrate_tool_result(
+        self, store: IAttachmentStore, result: ToolResult
+    ) -> ToolResult:
+        if not result.attachments:
+            return result
+        attachments = [
+            self._hydrate_attachment(store, attachment)
+            for attachment in result.attachments
+        ]
+        return result.model_copy(update={"attachments": attachments})
 
     def _hydrate_attachment(
         self, store: IAttachmentStore, attachment: Attachment
@@ -231,6 +253,10 @@ class ToolLoop:
                     tool_call_id=tool_call.id,
                     content=f"Tool {tool_call.name} failed with an internal error.",
                     is_error=True,
+                )
+            if result.attachments:
+                result = result.model_copy(
+                    update={"attachments": self._store_attachments(result.attachments)}
                 )
             if result.is_error:
                 logger.error(
