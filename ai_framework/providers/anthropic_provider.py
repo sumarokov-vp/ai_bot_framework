@@ -7,7 +7,7 @@ import anthropic
 from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.message import Message
 from ai_framework.entities.token_usage import TokenUsage
-from ai_framework.entities.tool import ToolCall
+from ai_framework.entities.tool import ToolCall, ToolResult
 from ai_framework.protocols.base_tool import BaseTool
 
 
@@ -49,13 +49,7 @@ class AnthropicProvider:
     def _convert_message(self, message: Message) -> dict[str, Any]:
         if message.tool_results:
             content: list[dict[str, Any]] = [
-                {
-                    "type": "tool_result",
-                    "tool_use_id": tr.tool_call_id,
-                    "content": tr.content,
-                    **({"is_error": True} if tr.is_error else {}),
-                }
-                for tr in message.tool_results
+                self._convert_tool_result(tr) for tr in message.tool_results
             ]
             return {"role": "user", "content": content}
 
@@ -81,6 +75,23 @@ class AnthropicProvider:
             return {"role": message.role, "content": attachment_blocks}
 
         return {"role": message.role, "content": message.content}
+
+    def _convert_tool_result(self, result: ToolResult) -> dict[str, Any]:
+        return {
+            "type": "tool_result",
+            "tool_use_id": result.tool_call_id,
+            "content": self._tool_result_content(result),
+            **({"is_error": True} if result.is_error else {}),
+        }
+
+    def _tool_result_content(self, result: ToolResult) -> str | list[dict[str, Any]]:
+        if not result.attachments:
+            return result.content
+        blocks: list[dict[str, Any]] = []
+        if result.content:
+            blocks.append({"type": "text", "text": result.content})
+        blocks.extend(a.to_content_block() for a in result.attachments)
+        return blocks
 
     def _convert_tool(self, tool: BaseTool) -> dict[str, Any]:
         return {

@@ -26,7 +26,4 @@ class ToolRegistry:
         context = ToolContext(tool_context)
         parsed_input = tool.Input.model_validate(arguments)
         result = tool.execute(parsed_input, context)
-        return ToolResult(
-            tool_call_id=tool_call_id,
-            content=str(result),
-        )
+        return ToolResult.from_output(tool_call_id, result)
