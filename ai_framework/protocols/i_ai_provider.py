@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.message import Message
@@ -16,3 +16,8 @@ class IAIProvider(Protocol):
         tool_context: dict[str, Any] | None = None,
         thread_id: str | None = None,
     ) -> AIResponse: ...
+
+
+@runtime_checkable
+class IModelToolNames(Protocol):
+    def model_tool_name(self, name: str) -> str: ...

@@ -18,6 +18,9 @@ class AnthropicProvider:
         self._client = anthropic.Anthropic(api_key=api_key)
         self._model = model
 
+    def model_tool_name(self, name: str) -> str:
+        return name
+
     def send_message(
         self,
         messages: list[Message],
