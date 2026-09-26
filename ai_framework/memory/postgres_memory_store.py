@@ -3,6 +3,7 @@ from typing import Any
 
 import psycopg
 
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolCall, ToolResult
 
@@ -14,13 +15,19 @@ class PostgresMemoryStore:
     def get_messages(self, thread_id: str) -> list[Message]:
         with psycopg.connect(self._database_url) as conn:
             cursor = conn.execute(
-                "SELECT role, content, tool_calls, tool_results "
+                "SELECT role, content, tool_calls, tool_results, attachments "
                 "FROM ai_messages WHERE thread_id = %s ORDER BY id",
                 (thread_id,),
             )
             messages: list[Message] = []
             rows: list[Any] = cursor.fetchall()
-            for role, content, tool_calls_json, tool_results_json in rows:
+            for (
+                role,
+                content,
+                tool_calls_json,
+                tool_results_json,
+                attachments_json,
+            ) in rows:
                 tool_calls = (
                     [ToolCall(**tc) for tc in tool_calls_json]
                     if tool_calls_json
@@ -31,12 +38,18 @@ class PostgresMemoryStore:
                     if tool_results_json
                     else None
                 )
+                attachments = (
+                    [Attachment(**a) for a in attachments_json]
+                    if attachments_json
+                    else None
+                )
                 messages.append(
                     Message(
                         role=role,
                         content=str(content),
                         tool_calls=tool_calls,
                         tool_results=tool_results,
+                        attachments=attachments,
                     )
                 )
             return messages
@@ -52,11 +65,24 @@ class PostgresMemoryStore:
             if message.tool_results
             else None
         )
+        attachments_json = (
+            json.dumps([a.model_dump() for a in message.attachments])
+            if message.attachments
+            else None
+        )
         with psycopg.connect(self._database_url) as conn:
             conn.execute(
-                "INSERT INTO ai_messages (thread_id, role, content, tool_calls, tool_results) "
-                "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)",
-                (thread_id, message.role, message.content, tool_calls_json, tool_results_json),
+                "INSERT INTO ai_messages "
+                "(thread_id, role, content, tool_calls, tool_results, attachments) "
+                "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb)",
+                (
+                    thread_id,
+                    message.role,
+                    message.content,
+                    tool_calls_json,
+                    tool_results_json,
+                    attachments_json,
+                ),
             )
 
     def clear(self, thread_id: str) -> None:
