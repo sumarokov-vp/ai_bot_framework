@@ -36,6 +36,7 @@ class _RecordingProvider:
         system: str | None = None,
         tools: Any = None,
         tool_context: dict[str, Any] | None = None,
+        thread_id: str | None = None,
     ) -> AIResponse:
         self.calls.append(messages)
         return AIResponse(content="ok")

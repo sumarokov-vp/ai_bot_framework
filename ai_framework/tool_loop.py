@@ -92,6 +92,7 @@ class ToolLoop:
                 system=system_prompt,
                 tools=tools,
                 tool_context=tool_context,
+                thread_id=thread_id,
             )
 
             if not response.tool_calls:
@@ -123,7 +124,7 @@ class ToolLoop:
             content=response.content or "",
         )
         self._memory.add_message(thread_id, assistant_msg)
-        response.suppress_response = suppress_response
+        response.suppress_response = suppress_response or response.suppress_response
         return response
 
     def _store_attachments(
