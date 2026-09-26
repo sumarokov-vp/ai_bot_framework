@@ -74,6 +74,9 @@ class AIApplication:
         if not self._infrastructure:
             raise RuntimeError("Use 'with app:' context manager before using AIApplication")
         self._infrastructure.memory.clear(thread_id)
+        reset_session = getattr(self._provider, "reset_session", None)
+        if callable(reset_session):
+            reset_session(thread_id)
 
     def inject_note(self, thread_id: str, note: str) -> None:
         if not self._infrastructure:

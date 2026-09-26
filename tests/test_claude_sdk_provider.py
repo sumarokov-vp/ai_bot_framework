@@ -62,7 +62,7 @@ def _invoke_wrapper(
 
     async def _runner() -> dict[str, Any]:
         provider._context_var.set(context or {})
-        provider._suppress_response_flag_var.set(False)
+        provider._suppressing_tools_var.set(set())
         return await handler(args)
 
     return asyncio.run(_runner())
@@ -106,10 +106,11 @@ def test_wrap_tool_sets_suppress_response_flag():
     handler = getattr(wrapper, "handler", wrapper)
 
     async def _runner() -> bool:
+        suppressing_tools: set[str] = set()
         provider._context_var.set({})
-        provider._suppress_response_flag_var.set(False)
+        provider._suppressing_tools_var.set(suppressing_tools)
         await handler({"text": "hi"})
-        return provider._suppress_response_flag_var.get()
+        return bool(suppressing_tools)
 
     assert asyncio.run(_runner()) is True
 
@@ -120,17 +121,17 @@ def test_wrap_tool_does_not_set_suppress_flag_for_regular_tool():
     handler = getattr(wrapper, "handler", wrapper)
 
     async def _runner() -> bool:
+        suppressing_tools: set[str] = set()
         provider._context_var.set({})
-        provider._suppress_response_flag_var.set(False)
+        provider._suppressing_tools_var.set(suppressing_tools)
         await handler({"text": "hi"})
-        return provider._suppress_response_flag_var.get()
+        return bool(suppressing_tools)
 
     assert asyncio.run(_runner()) is False
 
 
 def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
     messages = [
         Message(role="user", content="привет"),
         Message(role="assistant", content="здравствуйте"),
@@ -138,7 +139,7 @@ def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
         Message(role="user", content="а что с ним?"),
     ]
 
-    prompt = provider._build_prompt(messages)
+    prompt = provider._build_prompt(messages, "session-1")
 
     assert prompt == (
         "[SYSTEM NOTE] бот отправил карточку устройства\n\nа что с ним?"
@@ -147,14 +148,13 @@ def test_build_prompt_on_resume_keeps_notes_added_after_last_answer():
 
 def test_build_prompt_on_resume_keeps_single_user_message():
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
     messages = [
         Message(role="user", content="привет"),
         Message(role="assistant", content="здравствуйте"),
         Message(role="user", content="а что с ним?"),
     ]
 
-    assert provider._build_prompt(messages) == "а что с ним?"
+    assert provider._build_prompt(messages, "session-1") == "а что с ним?"
 
 
 def test_build_prompt_without_session_keeps_full_history():
@@ -164,7 +164,7 @@ def test_build_prompt_without_session_keeps_full_history():
         Message(role="assistant", content="здравствуйте"),
     ]
 
-    assert provider._build_prompt(messages) == (
+    assert provider._build_prompt(messages, None) == (
         "[User]: привет\n\n[Assistant]: здравствуйте"
     )
 
@@ -261,7 +261,7 @@ def test_send_message_on_resume_streams_only_tail_attachments(
     recorded_query: _QueryRecorder,
 ):
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
+    provider._thread_sessions[None] = "session-1"
     messages = [
         Message(role="user", content="вот паспорт", attachments=[_png(b"old")]),
         Message(role="assistant", content="вижу"),
@@ -284,7 +284,7 @@ def test_send_message_without_attachments_passes_string_prompt(
     recorded_query: _QueryRecorder,
 ):
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
+    provider._thread_sessions[None] = "session-1"
     messages = [
         Message(role="user", content="вот паспорт", attachments=[_png()]),
         Message(role="assistant", content="вижу"),
@@ -299,10 +299,9 @@ def test_send_message_without_attachments_passes_string_prompt(
 
 def test_build_prompt_with_attachment_only_message_omits_empty_text():
     provider = ClaudeSdkProvider()
-    provider._last_session_id = "session-1"
     messages = [Message(role="user", content="", attachments=[_png()])]
 
-    prompt = provider._build_prompt(messages)
+    prompt = provider._build_prompt(messages, "session-1")
 
     assert not isinstance(prompt, str)
 
@@ -326,4 +325,4 @@ def test_build_prompt_rejects_attachment_without_data_before_query():
     ]
 
     with pytest.raises(ValueError, match="k1.png"):
-        provider._build_prompt(messages)
+        provider._build_prompt(messages, None)

@@ -44,14 +44,15 @@ class ClaudeSdkProvider:
         self._permission_mode: PermissionMode = permission_mode
         self._mcp_server_name = mcp_server_name
         self._last_session_id: str | None = None
+        self._thread_sessions: dict[str | None, str] = {}
         self._mcp_server: McpSdkServerConfig | None = None
         self._registered_tool_names: set[str] = set()
         self._context_var: contextvars.ContextVar[dict[str, Any] | None] = (
             contextvars.ContextVar("ai_framework_tool_context", default=None)
         )
-        self._suppress_response_flag_var: contextvars.ContextVar[bool] = (
+        self._suppressing_tools_var: contextvars.ContextVar[set[str] | None] = (
             contextvars.ContextVar(
-                "ai_framework_suppress_response_flag", default=False
+                "ai_framework_suppressing_tools", default=None
             )
         )
 
@@ -59,15 +60,23 @@ class ClaudeSdkProvider:
     def last_session_id(self) -> str | None:
         return self._last_session_id
 
+    def reset_session(self, thread_id: str | None = None) -> None:
+        session_id = self._thread_sessions.pop(thread_id, None)
+        if session_id is not None and session_id == self._last_session_id:
+            self._last_session_id = None
+
     def send_message(
         self,
         messages: list[Message],
         system: str | None = None,
         tools: list[BaseTool] | None = None,
         tool_context: dict[str, Any] | None = None,
+        thread_id: str | None = None,
     ) -> AIResponse:
         return asyncio.run(
-            self._send_message_async(messages, system, tools, tool_context)
+            self._send_message_async(
+                messages, system, tools, tool_context, thread_id
+            )
         )
 
     async def _send_message_async(
@@ -76,6 +85,7 @@ class ClaudeSdkProvider:
         system: str | None = None,
         tools: list[BaseTool] | None = None,
         tool_context: dict[str, Any] | None = None,
+        thread_id: str | None = None,
     ) -> AIResponse:
         if tools:
             tool_names = {t.name for t in tools}
@@ -83,12 +93,14 @@ class ClaudeSdkProvider:
                 self._build_mcp_server(tools)
 
         self._context_var.set(tool_context or {})
-        self._suppress_response_flag_var.set(False)
+        suppressing_tools: set[str] = set()
+        self._suppressing_tools_var.set(suppressing_tools)
+        resume = self._thread_sessions.get(thread_id)
 
         options = ClaudeAgentOptions(
             model=self._model,
             permission_mode=self._permission_mode,
-            resume=self._last_session_id,
+            resume=resume,
         )
 
         if self._cwd:
@@ -103,7 +115,7 @@ class ClaudeSdkProvider:
                 f"mcp__{self._mcp_server_name}__{t.name}" for t in tools
             ]
 
-        prompt = self._build_prompt(messages)
+        prompt = self._build_prompt(messages, resume)
 
         text_parts: list[str] = []
         usage: TokenUsage | None = None
@@ -124,6 +136,7 @@ class ClaudeSdkProvider:
                             block.content,
                         )
             elif isinstance(msg, ResultMessage):
+                self._thread_sessions[thread_id] = msg.session_id
                 self._last_session_id = msg.session_id
                 usage = self._extract_usage(msg)
 
@@ -132,7 +145,7 @@ class ClaudeSdkProvider:
             tool_calls=[],
             stop_reason="end_turn",
             usage=usage,
-            suppress_response=self._suppress_response_flag_var.get(),
+            suppress_response=bool(suppressing_tools),
         )
 
     def _build_mcp_server(self, tools: list[BaseTool]) -> None:
@@ -146,7 +159,7 @@ class ClaudeSdkProvider:
 
     def _wrap_tool(self, base_tool: BaseTool) -> Any:
         context_var = self._context_var
-        suppress_flag_var = self._suppress_response_flag_var
+        suppressing_tools_var = self._suppressing_tools_var
 
         @mcp_tool(base_tool.name, base_tool.description, base_tool.input_schema)
         async def _wrapper(args: dict[str, Any]) -> dict[str, Any]:
@@ -166,8 +179,12 @@ class ClaudeSdkProvider:
                     ],
                     "isError": True,
                 }
-            if getattr(base_tool, "suppress_response", False):
-                suppress_flag_var.set(True)
+            suppressing_tools = suppressing_tools_var.get()
+            if (
+                getattr(base_tool, "suppress_response", False)
+                and suppressing_tools is not None
+            ):
+                suppressing_tools.add(base_tool.name)
             text = (
                 result
                 if isinstance(result, str)
@@ -178,14 +195,12 @@ class ClaudeSdkProvider:
         return _wrapper
 
     def _build_prompt(
-        self, messages: list[Message]
+        self, messages: list[Message], resume: str | None
     ) -> str | AsyncIterator[dict[str, Any]]:
-        prompt_messages = (
-            self._resume_tail(messages) if self._last_session_id else messages
-        )
+        prompt_messages = self._resume_tail(messages) if resume else messages
         text = (
             "\n\n".join(msg.content for msg in prompt_messages)
-            if self._last_session_id
+            if resume
             else self._render_history(prompt_messages)
         )
         attachments = [
