@@ -1,4 +1,5 @@
 from ai_framework.entities.ai_response import AIResponse
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.provider import Provider
 from ai_framework.entities.session import Session
@@ -8,6 +9,7 @@ from ai_framework.entities.tool_context import ToolContext
 
 __all__ = [
     "AIResponse",
+    "Attachment",
     "Message",
     "Provider",
     "Session",

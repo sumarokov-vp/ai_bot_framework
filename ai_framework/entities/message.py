@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.tool import ToolCall, ToolResult
 
 
@@ -12,3 +13,4 @@ class Message(BaseModel):
     content: str
     tool_calls: list[ToolCall] | None = None
     tool_results: list[ToolResult] | None = None
+    attachments: list[Attachment] | None = None
