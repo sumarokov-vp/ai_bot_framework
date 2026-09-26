@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 from collections.abc import AsyncIterator
 from typing import Any, ClassVar
@@ -32,9 +33,15 @@ SYSTEM_PROMPT = (
 )
 REQUEST = f"Создай страницу вики с заголовком {PAGE_TITLE}."
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("claude") is None, reason="claude CLI is required"
-)
+pytestmark = [
+    pytest.mark.skipif(
+        os.environ.get("AI_FRAMEWORK_LIVE_SDK") is None,
+        reason="AI_FRAMEWORK_LIVE_SDK is required",
+    ),
+    pytest.mark.skipif(
+        shutil.which("claude") is None, reason="claude CLI is required"
+    ),
+]
 
 
 class _PageInput(BaseModel):
