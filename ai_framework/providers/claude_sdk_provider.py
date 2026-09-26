@@ -21,6 +21,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import McpSdkServerConfig
 
 from ai_framework.entities.ai_response import AIResponse
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.token_usage import TokenUsage
 from ai_framework.entities.tool_context import ToolContext
@@ -168,7 +169,7 @@ class ClaudeSdkProvider:
             ctx_data = context_var.get() or {}
             ctx = ToolContext(ctx_data)
             try:
-                result = base_tool.execute(input_obj, ctx)
+                content = _to_mcp_content(base_tool.execute(input_obj, ctx))
             except Exception as exc:
                 logger.exception("Tool %s failed", base_tool.name)
                 return {
@@ -186,12 +187,7 @@ class ClaudeSdkProvider:
                 and suppressing_tools is not None
             ):
                 suppressing_tools.add(base_tool.name)
-            text = (
-                result
-                if isinstance(result, str)
-                else json.dumps(result, ensure_ascii=False, default=str)
-            )
-            return {"content": [{"type": "text", "text": text}]}
+            return {"content": content}
 
         return _wrapper
 
@@ -254,3 +250,22 @@ class ClaudeSdkProvider:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
+
+
+def _to_mcp_content(result: object) -> list[dict[str, Any]]:
+    if isinstance(result, Attachment):
+        return [result.to_mcp_content()]
+    if isinstance(result, list) and any(isinstance(item, Attachment) for item in result):
+        return [_to_mcp_part(item) for item in result]
+    text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str)
+    return [{"type": "text", "text": text}]
+
+
+def _to_mcp_part(item: object) -> dict[str, Any]:
+    if isinstance(item, Attachment):
+        return item.to_mcp_content()
+    if isinstance(item, str):
+        return {"type": "text", "text": item}
+    raise ValueError(
+        f"Tool result list mixes attachments with {type(item).__name__}: only str and Attachment are allowed"
+    )
