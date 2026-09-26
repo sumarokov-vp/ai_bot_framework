@@ -4,6 +4,7 @@ import asyncio
 import contextvars
 import json
 import logging
+from collections.abc import AsyncIterator
 from typing import Any, Literal
 
 from claude_agent_sdk import (
@@ -176,21 +177,54 @@ class ClaudeSdkProvider:
 
         return _wrapper
 
-    def _build_prompt(self, messages: list[Message]) -> str:
-        if self._last_session_id:
-            tail: list[str] = []
-            for msg in reversed(messages):
-                if msg.role == "assistant":
-                    break
-                if msg.role == "user":
-                    tail.append(msg.content)
-            return "\n\n".join(reversed(tail))
+    def _build_prompt(
+        self, messages: list[Message]
+    ) -> str | AsyncIterator[dict[str, Any]]:
+        prompt_messages = (
+            self._resume_tail(messages) if self._last_session_id else messages
+        )
+        text = (
+            "\n\n".join(msg.content for msg in prompt_messages)
+            if self._last_session_id
+            else self._render_history(prompt_messages)
+        )
+        attachments = [
+            attachment
+            for msg in prompt_messages
+            for attachment in msg.attachments or []
+        ]
+        if not attachments:
+            return text
+        content = [attachment.to_content_block() for attachment in attachments]
+        if text:
+            content.append({"type": "text", "text": text})
+        return self._stream_user_message(content)
 
+    def _resume_tail(self, messages: list[Message]) -> list[Message]:
+        tail: list[Message] = []
+        for msg in reversed(messages):
+            if msg.role == "assistant":
+                break
+            if msg.role == "user":
+                tail.append(msg)
+        return list(reversed(tail))
+
+    def _render_history(self, messages: list[Message]) -> str:
         parts: list[str] = []
         for msg in messages:
             prefix = "User" if msg.role == "user" else "Assistant"
             parts.append(f"[{prefix}]: {msg.content}")
         return "\n\n".join(parts)
+
+    async def _stream_user_message(
+        self, content: list[dict[str, Any]]
+    ) -> AsyncIterator[dict[str, Any]]:
+        yield {
+            "type": "user",
+            "message": {"role": "user", "content": content},
+            "parent_tool_use_id": None,
+            "session_id": "default",
+        }
 
     def _extract_usage(self, result: ResultMessage) -> TokenUsage:
         raw_usage = result.usage or {}

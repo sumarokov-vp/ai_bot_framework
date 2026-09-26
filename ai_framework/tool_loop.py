@@ -5,9 +5,11 @@ import logging
 from typing import Any
 
 from ai_framework.entities.ai_response import AIResponse
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolResult
 from ai_framework.protocols.i_ai_provider import IAIProvider
+from ai_framework.protocols.i_attachment_store import IAttachmentStore
 from ai_framework.protocols.i_memory_store import IMemoryStore
 from ai_framework.protocols.i_session_store import ISessionStore
 from ai_framework.protocols.i_tool_registry import IToolRegistry
@@ -26,6 +28,7 @@ class ToolLoop:
         system_prompt: str,
         max_rounds: int = 10,
         history_turns_limit: int | None = None,
+        attachment_store: IAttachmentStore | None = None,
     ) -> None:
         if history_turns_limit is not None and history_turns_limit < 1:
             raise ValueError(
@@ -38,6 +41,7 @@ class ToolLoop:
         self._system_prompt = system_prompt
         self._max_rounds = max_rounds
         self._history_turns_limit = history_turns_limit
+        self._attachment_store = attachment_store
 
     def update_system_prompt(self, text: str) -> None:
         self._system_prompt = text
@@ -61,11 +65,18 @@ class ToolLoop:
         thread_id: str,
         user_message: str,
         tool_context: dict[str, Any] | None = None,
+        attachments: list[Attachment] | None = None,
     ) -> AIResponse:
+        stored_attachments = self._store_attachments(attachments)
+
         self._sessions.get_or_create(thread_id)
         self._sessions.touch(thread_id)
 
-        user_msg = Message(role="user", content=user_message)
+        user_msg = Message(
+            role="user",
+            content=user_message,
+            attachments=stored_attachments,
+        )
         self._memory.add_message(thread_id, user_msg)
 
         tools = self._tool_registry.get_tools() or None
@@ -73,7 +84,9 @@ class ToolLoop:
         suppress_response = False
 
         for _ in range(self._max_rounds):
-            messages = self._trim_history(self._memory.get_messages(thread_id))
+            messages = self._hydrate_attachments(
+                self._trim_history(self._memory.get_messages(thread_id))
+            )
             response = self._provider.send_message(
                 messages=messages,
                 system=system_prompt,
@@ -112,6 +125,54 @@ class ToolLoop:
         self._memory.add_message(thread_id, assistant_msg)
         response.suppress_response = suppress_response
         return response
+
+    def _store_attachments(
+        self, attachments: list[Attachment] | None
+    ) -> list[Attachment] | None:
+        if not attachments:
+            return None
+        store = self._require_attachment_store()
+        stored: list[Attachment] = []
+        for attachment in attachments:
+            if attachment.data is None:
+                raise ValueError(
+                    f"Attachment {attachment.filename!r} has no data to store"
+                )
+            key = store.put(attachment.data, attachment.media_type)
+            stored.append(attachment.model_copy(update={"key": key, "data": None}))
+        return stored
+
+    def _hydrate_attachments(self, messages: list[Message]) -> list[Message]:
+        if not any(message.attachments for message in messages):
+            return messages
+        store = self._require_attachment_store()
+        hydrated: list[Message] = []
+        for message in messages:
+            if not message.attachments:
+                hydrated.append(message)
+                continue
+            attachments = [
+                self._hydrate_attachment(store, attachment)
+                for attachment in message.attachments
+            ]
+            hydrated.append(message.model_copy(update={"attachments": attachments}))
+        return hydrated
+
+    def _hydrate_attachment(
+        self, store: IAttachmentStore, attachment: Attachment
+    ) -> Attachment:
+        if attachment.key is None:
+            raise ValueError(
+                f"Attachment {attachment.filename!r} in history has no storage key"
+            )
+        return attachment.model_copy(update={"data": store.get(attachment.key)})
+
+    def _require_attachment_store(self) -> IAttachmentStore:
+        if self._attachment_store is None:
+            raise ValueError(
+                "Attachments require an attachment_store: pass it to AIApplication"
+            )
+        return self._attachment_store
 
     def _trim_history(self, messages: list[Message]) -> list[Message]:
         """Keep only the last N full turns.

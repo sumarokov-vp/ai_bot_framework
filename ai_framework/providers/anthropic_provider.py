@@ -70,6 +70,12 @@ class AnthropicProvider:
                 )
             return {"role": "assistant", "content": content_blocks}
 
+        if message.attachments:
+            attachment_blocks = [a.to_content_block() for a in message.attachments]
+            if message.content:
+                attachment_blocks.append({"type": "text", "text": message.content})
+            return {"role": message.role, "content": attachment_blocks}
+
         return {"role": message.role, "content": message.content}
 
     def _convert_tool(self, tool: BaseTool) -> dict[str, Any]:

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+from collections.abc import AsyncIterator
 from typing import Any, ClassVar
 
 import pytest
@@ -10,9 +12,11 @@ pytest.importorskip("claude_agent_sdk")
 
 from pydantic import BaseModel
 
+from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool_context import ToolContext
 from ai_framework.protocols.base_tool import BaseTool
+from ai_framework.providers import claude_sdk_provider
 from ai_framework.providers.claude_sdk_provider import ClaudeSdkProvider
 
 
@@ -163,3 +167,163 @@ def test_build_prompt_without_session_keeps_full_history():
     assert provider._build_prompt(messages) == (
         "[User]: привет\n\n[Assistant]: здравствуйте"
     )
+
+
+_PNG_BYTES = b"\x89PNG\r\n\x1a\nfake-png"
+_PDF_BYTES = b"%PDF-1.7 fake-pdf"
+
+
+def _png(data: bytes = _PNG_BYTES) -> Attachment:
+    return Attachment(media_type="image/png", data=data, key="k1.png")
+
+
+def _pdf(data: bytes = _PDF_BYTES) -> Attachment:
+    return Attachment(media_type="application/pdf", data=data, key="k2.pdf")
+
+
+def _b64(data: bytes) -> str:
+    return base64.standard_b64encode(data).decode("ascii")
+
+
+class _QueryRecorder:
+    def __init__(self) -> None:
+        self.prompt: str | None = None
+        self.streamed: list[dict[str, Any]] | None = None
+
+    def __call__(self, *, prompt: Any, options: Any) -> AsyncIterator[Any]:
+        return self._run(prompt)
+
+    async def _run(self, prompt: Any) -> AsyncIterator[Any]:
+        if isinstance(prompt, str):
+            self.prompt = prompt
+        else:
+            self.streamed = [message async for message in prompt]
+        return
+        yield
+
+
+@pytest.fixture
+def recorded_query(monkeypatch: pytest.MonkeyPatch) -> _QueryRecorder:
+    recorder = _QueryRecorder()
+    monkeypatch.setattr(claude_sdk_provider, "query", recorder)
+    return recorder
+
+
+def _single_streamed_content(recorder: _QueryRecorder) -> list[dict[str, Any]]:
+    assert recorder.prompt is None
+    assert recorder.streamed is not None
+    assert len(recorder.streamed) == 1
+    streamed = recorder.streamed[0]
+    assert streamed["type"] == "user"
+    assert streamed["parent_tool_use_id"] is None
+    assert streamed["message"]["role"] == "user"
+    return streamed["message"]["content"]
+
+
+def test_send_message_without_session_streams_attachments_of_whole_history(
+    recorded_query: _QueryRecorder,
+):
+    provider = ClaudeSdkProvider()
+    messages = [
+        Message(role="user", content="вот паспорт", attachments=[_png()]),
+        Message(role="assistant", content="вижу"),
+        Message(role="user", content="и договор", attachments=[_pdf()]),
+    ]
+
+    provider.send_message(messages)
+
+    content = _single_streamed_content(recorded_query)
+    assert content == [
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": _b64(_PNG_BYTES),
+            },
+        },
+        {
+            "type": "document",
+            "source": {
+                "type": "base64",
+                "media_type": "application/pdf",
+                "data": _b64(_PDF_BYTES),
+            },
+        },
+        {
+            "type": "text",
+            "text": "[User]: вот паспорт\n\n[Assistant]: вижу\n\n[User]: и договор",
+        },
+    ]
+
+
+def test_send_message_on_resume_streams_only_tail_attachments(
+    recorded_query: _QueryRecorder,
+):
+    provider = ClaudeSdkProvider()
+    provider._last_session_id = "session-1"
+    messages = [
+        Message(role="user", content="вот паспорт", attachments=[_png(b"old")]),
+        Message(role="assistant", content="вижу"),
+        Message(role="user", content="[SYSTEM NOTE] прислан файл"),
+        Message(role="user", content="что в договоре?", attachments=[_pdf()]),
+    ]
+
+    provider.send_message(messages)
+
+    content = _single_streamed_content(recorded_query)
+    assert [block["type"] for block in content] == ["document", "text"]
+    assert content[0]["source"]["data"] == _b64(_PDF_BYTES)
+    assert content[1] == {
+        "type": "text",
+        "text": "[SYSTEM NOTE] прислан файл\n\nчто в договоре?",
+    }
+
+
+def test_send_message_without_attachments_passes_string_prompt(
+    recorded_query: _QueryRecorder,
+):
+    provider = ClaudeSdkProvider()
+    provider._last_session_id = "session-1"
+    messages = [
+        Message(role="user", content="вот паспорт", attachments=[_png()]),
+        Message(role="assistant", content="вижу"),
+        Message(role="user", content="спасибо"),
+    ]
+
+    provider.send_message(messages)
+
+    assert recorded_query.streamed is None
+    assert recorded_query.prompt == "спасибо"
+
+
+def test_build_prompt_with_attachment_only_message_omits_empty_text():
+    provider = ClaudeSdkProvider()
+    provider._last_session_id = "session-1"
+    messages = [Message(role="user", content="", attachments=[_png()])]
+
+    prompt = provider._build_prompt(messages)
+
+    assert not isinstance(prompt, str)
+
+    async def _collect() -> list[dict[str, Any]]:
+        return [message async for message in prompt]
+
+    streamed = asyncio.run(_collect())
+    assert [block["type"] for block in streamed[0]["message"]["content"]] == [
+        "image"
+    ]
+
+
+def test_build_prompt_rejects_attachment_without_data_before_query():
+    provider = ClaudeSdkProvider()
+    messages = [
+        Message(
+            role="user",
+            content="вот",
+            attachments=[Attachment(media_type="image/png", key="k1.png")],
+        )
+    ]
+
+    with pytest.raises(ValueError, match="k1.png"):
+        provider._build_prompt(messages)

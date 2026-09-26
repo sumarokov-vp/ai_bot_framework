@@ -18,9 +18,13 @@ dependencies = [
 claude-sdk = [
     "claude-agent-sdk>=0.1.32",
 ]
+s3 = [
+    "boto3>=1.43.103",
+]
 
 [dependency-groups]
 dev = [
+    "boto3>=1.43.103",
     "claude-agent-sdk>=0.1.32",
     "import-linter>=2.9",
     "mypy>=1.18.2",
@@ -98,6 +102,7 @@ layers = [
     "ai_framework.providers",
     "ai_framework.tools",
     "ai_framework.session",
+    "ai_framework.attachments",
     "ai_framework.memory",
     "ai_framework.migrations",
     "ai_framework.tool_loop",
