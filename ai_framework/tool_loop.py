@@ -8,7 +8,7 @@ from ai_framework.entities.ai_response import AIResponse
 from ai_framework.entities.attachment import Attachment
 from ai_framework.entities.message import Message
 from ai_framework.entities.tool import ToolResult
-from ai_framework.protocols.i_ai_provider import IAIProvider
+from ai_framework.protocols.i_ai_provider import IAIProvider, IModelToolNames
 from ai_framework.protocols.i_attachment_store import IAttachmentStore
 from ai_framework.protocols.i_memory_store import IMemoryStore
 from ai_framework.protocols.i_session_store import ISessionStore
@@ -52,13 +52,20 @@ class ToolLoop:
 
         tool_lines = []
         for tool in tools:
-            tool_lines.append(f"- **{tool.name}**: {tool.description}")
+            tool_lines.append(
+                f"- **{self._model_tool_name(tool.name)}**: {tool.description}"
+            )
 
         tools_block = (
             "\n\n## Available tools\n\n"
             + "\n".join(tool_lines)
         )
         return self._system_prompt + tools_block
+
+    def _model_tool_name(self, name: str) -> str:
+        if isinstance(self._provider, IModelToolNames):
+            return self._provider.model_tool_name(name)
+        return name
 
     def run(
         self,

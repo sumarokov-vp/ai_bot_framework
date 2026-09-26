@@ -60,6 +60,9 @@ class ClaudeSdkProvider:
     def last_session_id(self) -> str | None:
         return self._last_session_id
 
+    def model_tool_name(self, name: str) -> str:
+        return f"mcp__{self._mcp_server_name}__{name}"
+
     def reset_session(self, thread_id: str | None = None) -> None:
         session_id = self._thread_sessions.pop(thread_id, None)
         if session_id is not None and session_id == self._last_session_id:
@@ -111,9 +114,7 @@ class ClaudeSdkProvider:
 
         if tools and self._mcp_server is not None:
             options.mcp_servers = {self._mcp_server_name: self._mcp_server}
-            options.allowed_tools = [
-                f"mcp__{self._mcp_server_name}__{t.name}" for t in tools
-            ]
+            options.allowed_tools = [self.model_tool_name(t.name) for t in tools]
 
         prompt = self._build_prompt(messages, resume)
 

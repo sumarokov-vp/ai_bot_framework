@@ -34,6 +34,8 @@ app = AIApplication(
 
 `send_message` takes `thread_id` as an optional keyword. `AnthropicProvider` accepts and ignores it; without it `ClaudeSdkProvider` keeps a single session, as before. A custom provider passed to `ToolLoop` must accept the `thread_id` keyword.
 
+The `## Available tools` block that `ToolLoop` appends to the system prompt names each tool the way the provider exposes it to the model (`model_tool_name`): `ClaudeSdkProvider` gives `mcp__<mcp_server_name>__<name>` — the same name as in `allowed_tools`, since the SDK serves tools through an in-process MCP server; `AnthropicProvider` keeps the name as is. A custom provider without `model_tool_name` keeps the bare names.
+
 Tools with `suppress_response = True` work through the SDK too: the SDK runs the tool itself, the provider records the call and returns `AIResponse.suppress_response=True` from `process_message`.
 
 ## Attachments
