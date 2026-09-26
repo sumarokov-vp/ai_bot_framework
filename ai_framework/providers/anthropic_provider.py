@@ -24,8 +24,9 @@ class AnthropicProvider:
         system: str | None = None,
         tools: list[BaseTool] | None = None,
         tool_context: dict[str, Any] | None = None,
+        thread_id: str | None = None,
     ) -> AIResponse:
-        del tool_context
+        del tool_context, thread_id
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": 8192,
